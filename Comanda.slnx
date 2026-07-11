@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Comanda.Api/Comanda.Api.csproj" />
+    <Project Path="src/Comanda.Domain/Comanda.Domain.csproj" />
+    <Project Path="src/Comanda.Infrastructure/Comanda.Infrastructure.csproj" />
+  </Folder>
+</Solution>
