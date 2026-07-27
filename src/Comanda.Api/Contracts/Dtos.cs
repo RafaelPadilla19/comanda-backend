@@ -42,6 +42,8 @@ public sealed class BranchDto
     public string Hours { get; set; } = string.Empty;
     public string WhatsappPhone { get; set; } = string.Empty;
     public bool IsActive { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
 }
 
 public sealed class CategoryDto
@@ -98,6 +100,8 @@ public sealed class OrderDto
     public Guid? DriverId { get; set; }
     public string DriverName { get; set; } = string.Empty;
     public DateTime? DispatchedAt { get; set; }
+    public Guid? RiderJobId { get; set; }
+    public string RiderJobStatus { get; set; } = string.Empty;
     public string CouponCode { get; set; } = string.Empty;
     public decimal DiscountAmount { get; set; }
     public int PointsEarned { get; set; }
@@ -275,6 +279,9 @@ public sealed class SubscriptionPaymentDto
     public bool IsPaid { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? PaidAt { get; set; }
+    /// <summary>Hasta cuándo queda cubierta la suscripción con este pago (null si aún no se confirma).</summary>
+    public DateTime? PeriodEndsAt { get; set; }
+    public int PeriodMonths { get; set; }
 }
 
 public sealed class BillingDto

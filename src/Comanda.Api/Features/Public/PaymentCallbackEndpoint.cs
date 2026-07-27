@@ -78,6 +78,7 @@ public sealed class PaymentCallbackEndpoint(ComandaDbContext db, IConfiguration 
             var baseDate = tenant.SubscriptionEndsAt is { } end && end > DateTime.UtcNow ? end : DateTime.UtcNow;
             tenant.SubscriptionEndsAt = baseDate.AddMonths(sub.PeriodMonths);
             tenant.SubscriptionStatus = SubscriptionStatus.Active;
+            sub.PeriodEndsAt = tenant.SubscriptionEndsAt; // deja registrado qué período cubrió este pago
 
             // Marca como facturado el overage cobrado en este pago (evita volverlo a cobrar).
             if (sub.OverageOrders > 0)

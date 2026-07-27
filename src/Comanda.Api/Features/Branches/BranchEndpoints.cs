@@ -30,6 +30,8 @@ public sealed class SaveBranchRequest
     public string Hours { get; set; } = string.Empty;
     public string WhatsappPhone { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
 }
 
 public sealed class SaveBranchValidator : Validator<SaveBranchRequest>
@@ -55,7 +57,12 @@ public sealed class CreateBranchEndpoint(IRepository<Branch> branches, IPlanServ
             return;
         }
 
-        var branch = new Branch { Name = req.Name.Trim(), Address = req.Address.Trim(), Hours = req.Hours.Trim(), WhatsappPhone = BranchHelpers.DigitsOnly(req.WhatsappPhone), IsActive = req.IsActive };
+        var branch = new Branch
+        {
+            Name = req.Name.Trim(), Address = req.Address.Trim(), Hours = req.Hours.Trim(),
+            WhatsappPhone = BranchHelpers.DigitsOnly(req.WhatsappPhone), IsActive = req.IsActive,
+            Latitude = req.Latitude, Longitude = req.Longitude,
+        };
         await branches.AddAsync(branch, ct);
         await uow.SaveChangesAsync(ct);
         await Send.OkAsync(mapper.Map<Branch, BranchDto>(branch), ct);
@@ -80,6 +87,8 @@ public sealed class UpdateBranchEndpoint(IRepository<Branch> branches, IUnitOfWo
         branch.Hours = req.Hours.Trim();
         branch.WhatsappPhone = BranchHelpers.DigitsOnly(req.WhatsappPhone);
         branch.IsActive = req.IsActive;
+        branch.Latitude = req.Latitude;
+        branch.Longitude = req.Longitude;
         branches.Update(branch);
         await uow.SaveChangesAsync(ct);
 

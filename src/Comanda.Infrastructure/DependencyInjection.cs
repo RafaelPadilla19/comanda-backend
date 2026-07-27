@@ -42,6 +42,10 @@ public static class DependencyInjection
         var paymentsUrl = config["Services:PaymentsHubUrl"] ?? "http://localhost:5060";
         services.AddHttpClient<IPaymentsClient, Payments.PaymentsHubClient>(c => c.BaseAddress = new Uri(paymentsUrl));
 
+        // Cliente del microservicio de riders independientes (RidersHub) — HttpClient tipado.
+        var ridersUrl = config["Services:RidersHubUrl"] ?? "http://localhost:5062";
+        services.AddHttpClient<IRidersClient, Riders.RidersHubClient>(c => c.BaseAddress = new Uri(ridersUrl));
+
         // Repositorios (genérico + específicos) y unidad de trabajo
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
         services.AddScoped<IUserRepository, UserRepository>();

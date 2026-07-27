@@ -28,6 +28,10 @@ public class Order : Entity, ITenantScoped
     public string DriverName { get; set; } = string.Empty;  // repartidor asignado
     public DateTime? DispatchedAt { get; set; }             // marca "en camino"
 
+    // Rider externo (pool de RidersHub), cuando no hay repartidor propio disponible
+    public Guid? RiderJobId { get; set; }                   // id del job en RidersHub
+    public string RiderJobStatus { get; set; } = string.Empty; // Open/Accepted/Delivered (snapshot)
+
     // Descuento / cupón
     public string CouponCode { get; set; } = string.Empty;  // código aplicado (vacío = ninguno)
     public decimal DiscountAmount { get; set; }             // monto descontado (cupón + puntos)

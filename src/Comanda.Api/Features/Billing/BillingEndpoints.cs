@@ -32,6 +32,7 @@ public sealed class GetBillingEndpoint(
             .Select(p => new SubscriptionPaymentDto
             {
                 Amount = p.Amount, PlanName = p.PlanName, IsPaid = p.IsPaid, CreatedAt = p.CreatedAt, PaidAt = p.PaidAt,
+                PeriodEndsAt = p.PeriodEndsAt, PeriodMonths = p.PeriodMonths,
             }).ToList();
 
         var usage = await planService.GetUsageAsync(ct);
@@ -120,12 +121,32 @@ public sealed class SubscriptionCheckoutEndpoint(
             : new OverageBill { CycleKey = 0 };
         var amount = plan.PriceMonthly + overage.Amount;
 
-        var sub = new SubscriptionPayment
+        // Idempotencia: si ya existe un cobro pendiente (sin pagar) para este mismo plan,
+        // lo reutilizamos en vez de crear otro. Evita duplicados cuando el usuario reintenta
+        // "Pagar" (p.ej. el popup del navegador bloqueó la ventana la primera vez).
+        var pending = (await payments.ListAsync(p => p.TenantId == id && p.PlanId == plan.Id && !p.IsPaid, ct))
+            .OrderByDescending(p => p.CreatedAt)
+            .FirstOrDefault();
+
+        SubscriptionPayment sub;
+        if (pending is not null)
         {
-            TenantId = id, PlanId = plan.Id, PlanName = plan.Name, Amount = amount, PeriodMonths = 1,
-            OverageAmount = overage.Amount, OverageOrders = overage.Orders, OverageCycleKey = overage.CycleKey,
-        };
-        await payments.AddAsync(sub, ct);
+            pending.Amount = amount;
+            pending.OverageAmount = overage.Amount;
+            pending.OverageOrders = overage.Orders;
+            pending.OverageCycleKey = overage.CycleKey;
+            sub = pending;
+            payments.Update(sub);
+        }
+        else
+        {
+            sub = new SubscriptionPayment
+            {
+                TenantId = id, PlanId = plan.Id, PlanName = plan.Name, Amount = amount, PeriodMonths = 1,
+                OverageAmount = overage.Amount, OverageOrders = overage.Orders, OverageCycleKey = overage.CycleKey,
+            };
+            await payments.AddAsync(sub, ct);
+        }
         await uow.SaveChangesAsync(ct);
 
         // Llaves Wompi de plataforma (configuradas por el operador en /platform). El secret va cifrado.

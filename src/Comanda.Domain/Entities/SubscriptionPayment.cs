@@ -21,4 +21,10 @@ public class SubscriptionPayment : Entity, ITenantScoped
     public bool IsPaid { get; set; }
     public string PaymentRef { get; set; } = string.Empty;  // chargeId en PaymentsHub
     public DateTime? PaidAt { get; set; }
+
+    /// <summary>
+    /// Hasta cuándo queda cubierta la suscripción con este pago (= tenant.SubscriptionEndsAt
+    /// al momento de confirmarse). Con esto y PeriodMonths se puede mostrar el rango cubierto.
+    /// </summary>
+    public DateTime? PeriodEndsAt { get; set; }
 }
