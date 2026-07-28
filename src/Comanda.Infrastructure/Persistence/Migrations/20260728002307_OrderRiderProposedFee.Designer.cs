@@ -3,6 +3,7 @@ using System;
 using Comanda.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Comanda.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ComandaDbContext))]
-    partial class ComandaDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260728002307_OrderRiderProposedFee")]
+    partial class OrderRiderProposedFee
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -583,14 +586,6 @@ namespace Comanda.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
-
-                    b.Property<decimal>("TipRestaurant")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("TipRider")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
 
                     b.Property<decimal>("Total")
                         .HasPrecision(18, 2)

@@ -122,6 +122,8 @@ public sealed class PublicOrderRequest
     public bool RedeemPoints { get; set; }                      // canjear puntos de fidelización
     public bool PayOnline { get; set; }                         // iniciar pago en línea (PaymentsHub)
     public string? ReturnUrl { get; set; }                      // a dónde vuelve el cliente tras pagar (lo da el front)
+    public decimal TipRestaurant { get; set; }                  // propina opcional para el restaurante
+    public decimal TipRider { get; set; }                       // propina opcional para quien entrega (solo Delivery)
     public List<PublicOrderLine> Items { get; set; } = new();
 }
 
@@ -141,6 +143,10 @@ public sealed class PublicOrderValidator : Validator<PublicOrderRequest>
         RuleFor(x => x.ReturnUrl)
             .NotEmpty().When(x => x.PayOnline)
             .WithMessage("Falta la URL de retorno para el pago en línea.");
+        RuleFor(x => x.TipRestaurant).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.TipRider)
+            .Equal(0).When(x => x.Channel != OrderChannel.Delivery)
+            .WithMessage("La propina para el rider solo aplica en pedidos a domicilio.");
     }
 }
 
@@ -348,6 +354,8 @@ public sealed class PublicCreateOrderEndpoint(
             DeliveryZoneName = zoneName,
             CouponCode = couponCode,
             DiscountAmount = discount,
+            TipRestaurant = Math.Max(0, req.TipRestaurant),
+            TipRider = req.Channel == OrderChannel.Delivery ? Math.Max(0, req.TipRider) : 0,
             PointsEarned = pointsEarned,
             PointsRedeemed = pointsRedeemed,
             Items = lines,

@@ -31,10 +31,15 @@ public class Order : Entity, ITenantScoped
     // Rider externo (pool de RidersHub), cuando no hay repartidor propio disponible
     public Guid? RiderJobId { get; set; }                   // id del job en RidersHub
     public string RiderJobStatus { get; set; } = string.Empty; // Open/Accepted/Delivered (snapshot)
+    public decimal? RiderProposedFee { get; set; }          // si el rider pidió otra tarifa al aceptar (se paga fuera de Comanda)
 
     // Descuento / cupón
     public string CouponCode { get; set; } = string.Empty;  // código aplicado (vacío = ninguno)
     public decimal DiscountAmount { get; set; }             // monto descontado (cupón + puntos)
+
+    // Propinas (opcionales, las elige el cliente en el checkout de la tienda pública)
+    public decimal TipRestaurant { get; set; }              // para el restaurante/meseros
+    public decimal TipRider { get; set; }                   // para quien entrega (solo Delivery)
 
     // Fidelización
     public int PointsEarned { get; set; }
@@ -50,8 +55,9 @@ public class Order : Entity, ITenantScoped
     /// <summary>Subtotal de las líneas (sin envío ni descuento).</summary>
     public decimal ItemsSubtotal() => Items.Sum(i => i.UnitPrice * i.Quantity);
 
-    /// <summary>Recalcula el total: líneas + envío − descuento (nunca negativo).</summary>
-    public void RecalculateTotal() => Total = Math.Max(0m, ItemsSubtotal() + DeliveryFee - DiscountAmount);
+    /// <summary>Recalcula el total: líneas + envío − descuento + propinas (nunca negativo).</summary>
+    public void RecalculateTotal() =>
+        Total = Math.Max(0m, ItemsSubtotal() + DeliveryFee - DiscountAmount + TipRestaurant + TipRider);
 }
 
 /// <summary>Línea de un pedido.</summary>

@@ -102,8 +102,11 @@ public sealed class OrderDto
     public DateTime? DispatchedAt { get; set; }
     public Guid? RiderJobId { get; set; }
     public string RiderJobStatus { get; set; } = string.Empty;
+    public decimal? RiderProposedFee { get; set; }
     public string CouponCode { get; set; } = string.Empty;
     public decimal DiscountAmount { get; set; }
+    public decimal TipRestaurant { get; set; }
+    public decimal TipRider { get; set; }
     public int PointsEarned { get; set; }
     public int PointsRedeemed { get; set; }
     public bool IsPaid { get; set; }

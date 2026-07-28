@@ -132,11 +132,14 @@ public class ComandaDbContext(DbContextOptions<ComandaDbContext> options, ICurre
             e.Property(x => x.CustomerAddress).HasMaxLength(400);
             e.Property(x => x.Notes).HasMaxLength(400);
             e.Property(x => x.DeliveryFee).HasPrecision(18, 2);
+            e.Property(x => x.RiderProposedFee).HasPrecision(18, 2);
             e.Property(x => x.DeliveryZoneName).HasMaxLength(120);
             e.Property(x => x.DriverName).HasMaxLength(160);
             e.Property(x => x.CouponCode).HasMaxLength(40);
             e.Property(x => x.PaymentRef).HasMaxLength(80);
             e.Property(x => x.DiscountAmount).HasPrecision(18, 2);
+            e.Property(x => x.TipRestaurant).HasPrecision(18, 2);
+            e.Property(x => x.TipRider).HasPrecision(18, 2);
             e.Property(x => x.Total).HasPrecision(18, 2);
             e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
             e.HasMany(x => x.Items).WithOne().HasForeignKey(i => i.OrderId).OnDelete(DeleteBehavior.Cascade);

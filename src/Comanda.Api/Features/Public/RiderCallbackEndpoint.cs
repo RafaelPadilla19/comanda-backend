@@ -1,3 +1,4 @@
+using Comanda.Domain.Enums;
 using Comanda.Infrastructure.Persistence;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +12,7 @@ public sealed class RiderCallbackRequest
     public string OrderId { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty; // Open/Accepted/Delivered
     public string RiderName { get; set; } = string.Empty;
+    public decimal? ProposedFee { get; set; }
 }
 
 /// <summary>
@@ -48,6 +50,12 @@ public sealed class RiderCallbackEndpoint(ComandaDbContext db, IConfiguration co
         {
             order.DriverName = req.RiderName;
             order.DispatchedAt = DateTime.UtcNow;
+            order.RiderProposedFee = req.ProposedFee;
+        }
+        else if (req.Status.Equals("Delivered", StringComparison.OrdinalIgnoreCase))
+        {
+            // El rider ya entregó: avanza el pedido en el kanban aunque la cocina no lo haya movido manualmente.
+            order.Status = OrderStatus.Entregados;
         }
 
         await db.SaveChangesAsync(ct);
