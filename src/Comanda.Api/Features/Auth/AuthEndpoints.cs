@@ -7,6 +7,7 @@ using Comanda.Domain.Entities;
 using Comanda.Domain.Enums;
 using FastEndpoints;
 using FluentValidation;
+using Microsoft.AspNetCore.RateLimiting;
 using RMapper.Core.Interfaces;
 
 namespace Comanda.Api.Features.Auth;
@@ -43,6 +44,7 @@ public sealed class LoginEndpoint(
     {
         Post("/auth/login");
         AllowAnonymous();
+        Options(b => b.RequireRateLimiting("login"));
     }
 
     public override async Task HandleAsync(LoginRequest req, CancellationToken ct)
