@@ -24,6 +24,9 @@ public class Order : Entity, ITenantScoped
     // Delivery
     public decimal DeliveryFee { get; set; }                // tarifa de envío (solo Delivery)
     public string DeliveryZoneName { get; set; } = string.Empty; // snapshot de la zona elegida
+    public double? CustomerLat { get; set; }                // ubicación exacta del cliente (si la sucursal usa radio de cobertura)
+    public double? CustomerLng { get; set; }
+    public double? DeliveryDistanceKm { get; set; }          // distancia real sucursal→cliente (si se calculó por radio)
     public Guid? DriverId { get; set; }
     public string DriverName { get; set; } = string.Empty;  // repartidor asignado
     public DateTime? DispatchedAt { get; set; }             // marca "en camino"

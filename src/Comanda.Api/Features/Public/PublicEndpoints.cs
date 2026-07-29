@@ -97,6 +97,11 @@ public sealed class PublicMenuEndpoint(
             Categories = mapper.MapList<Category, CategoryDto>(cats),
             Products = mapper.MapList<Product, PublicProductDto>(available),
             DeliveryZones = mapper.MapList<DeliveryZone, DeliveryZoneDto>(branchZones),
+            BranchLat = branch.Latitude,
+            BranchLng = branch.Longitude,
+            CoverageRadiusKm = branch.CoverageRadiusKm,
+            DeliveryBaseFee = branch.DeliveryBaseFee,
+            DeliveryFeePerKm = branch.DeliveryFeePerKm,
         }, ct);
     }
 }
@@ -118,6 +123,8 @@ public sealed class PublicOrderRequest
     public string CustomerAddress { get; set; } = string.Empty; // requerido en Delivery
     public string Notes { get; set; } = string.Empty;
     public Guid? DeliveryZoneId { get; set; }                   // la tarifa se resuelve en el servidor
+    public double? CustomerLat { get; set; }                    // si la sucursal usa radio de cobertura por distancia
+    public double? CustomerLng { get; set; }
     public string? CouponCode { get; set; }                     // descuento (validado en el servidor)
     public bool RedeemPoints { get; set; }                      // canjear puntos de fidelización
     public bool PayOnline { get; set; }                         // iniciar pago en línea (PaymentsHub)
@@ -270,10 +277,41 @@ public sealed class PublicCreateOrderEndpoint(
             });
         }
 
-        // La tarifa y el nombre de la zona se resuelven en el servidor desde la zona elegida.
+        // La tarifa se resuelve en el servidor: por radio de cobertura (distancia real) si la sucursal
+        // lo tiene configurado, o por zona con nombre (comportamiento anterior) si no.
         var deliveryFee = 0m;
         var zoneName = string.Empty;
-        if (req.Channel == OrderChannel.Delivery && req.DeliveryZoneId is { } zoneId)
+        double? distanceKm = null;
+
+        if (req.Channel == OrderChannel.Delivery && branch.CoverageRadiusKm is { } radiusKm)
+        {
+            if (req.CustomerLat is not { } custLat || req.CustomerLng is not { } custLng)
+            {
+                await HttpContext.SendErrorAsync(
+                    Error.Validation("delivery.ubicacion_requerida", "Selecciona tu ubicación en el mapa para calcular el envío."), ct);
+                return;
+            }
+            if (branch.Latitude is not { } branchLat || branch.Longitude is not { } branchLng)
+            {
+                await HttpContext.SendErrorAsync(
+                    Error.Failure("delivery.sucursal_sin_ubicacion", "La sucursal no tiene ubicación configurada."), ct);
+                return;
+            }
+
+            var distance = GeoDistance.HaversineKm(branchLat, branchLng, custLat, custLng);
+            if (distance > radiusKm)
+            {
+                await HttpContext.SendErrorAsync(
+                    Error.Validation("delivery.fuera_de_cobertura",
+                        $"Estás fuera de nuestra zona de cobertura ({distance:F1} km, máximo {radiusKm:F1} km)."), ct);
+                return;
+            }
+
+            distanceKm = distance;
+            deliveryFee = Math.Round(branch.DeliveryBaseFee + branch.DeliveryFeePerKm * (decimal)distance, 2);
+            zoneName = $"Cobertura ({distance:F1} km)";
+        }
+        else if (req.Channel == OrderChannel.Delivery && req.DeliveryZoneId is { } zoneId)
         {
             if (await zones.GetByIdAsync(zoneId, ct) is not { IsActive: true } zone
                 || (zone.BranchId != null && zone.BranchId != branch.Id))
@@ -352,6 +390,9 @@ public sealed class PublicCreateOrderEndpoint(
             Notes = req.Notes.Trim(),
             DeliveryFee = deliveryFee,
             DeliveryZoneName = zoneName,
+            CustomerLat = req.Channel == OrderChannel.Delivery ? req.CustomerLat : null,
+            CustomerLng = req.Channel == OrderChannel.Delivery ? req.CustomerLng : null,
+            DeliveryDistanceKm = distanceKm,
             CouponCode = couponCode,
             DiscountAmount = discount,
             TipRestaurant = Math.Max(0, req.TipRestaurant),

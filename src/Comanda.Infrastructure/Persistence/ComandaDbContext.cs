@@ -98,6 +98,8 @@ public class ComandaDbContext(DbContextOptions<ComandaDbContext> options, ICurre
             e.Property(x => x.Address).HasMaxLength(300);
             e.Property(x => x.Hours).HasMaxLength(120);
             e.Property(x => x.WhatsappPhone).HasMaxLength(30);
+            e.Property(x => x.DeliveryBaseFee).HasPrecision(18, 2);
+            e.Property(x => x.DeliveryFeePerKm).HasPrecision(18, 2);
         });
 
         b.Entity<Category>(e =>

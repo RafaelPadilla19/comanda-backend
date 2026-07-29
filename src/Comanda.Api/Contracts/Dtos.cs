@@ -44,6 +44,9 @@ public sealed class BranchDto
     public bool IsActive { get; set; }
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
+    public double? CoverageRadiusKm { get; set; }
+    public decimal DeliveryBaseFee { get; set; }
+    public decimal DeliveryFeePerKm { get; set; }
 }
 
 public sealed class CategoryDto
@@ -97,6 +100,7 @@ public sealed class OrderDto
     public string Notes { get; set; } = string.Empty;
     public decimal DeliveryFee { get; set; }
     public string DeliveryZoneName { get; set; } = string.Empty;
+    public double? DeliveryDistanceKm { get; set; }
     public Guid? DriverId { get; set; }
     public string DriverName { get; set; } = string.Empty;
     public DateTime? DispatchedAt { get; set; }
@@ -351,6 +355,13 @@ public sealed class PublicMenuDto
     public List<CategoryDto> Categories { get; set; } = new();
     public List<PublicProductDto> Products { get; set; } = new();
     public List<DeliveryZoneDto> DeliveryZones { get; set; } = new();
+
+    /// <summary>Si la sucursal tiene radio de cobertura configurado, el checkout pide ubicación exacta en vez de zona.</summary>
+    public double? BranchLat { get; set; }
+    public double? BranchLng { get; set; }
+    public double? CoverageRadiusKm { get; set; }
+    public decimal DeliveryBaseFee { get; set; }
+    public decimal DeliveryFeePerKm { get; set; }
 }
 
 public sealed class CashMovementDto

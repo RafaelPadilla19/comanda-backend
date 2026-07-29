@@ -16,4 +16,9 @@ public class Branch : Entity, ITenantScoped
     /// <summary>Ubicación exacta del pin de recogida (elegido en el mapa). Null = solo se conoce la dirección en texto.</summary>
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
+
+    /// <summary>Radio de cobertura de delivery en km desde el pin. Null = sin cobertura por distancia (usa zonas con nombre).</summary>
+    public double? CoverageRadiusKm { get; set; }
+    public decimal DeliveryBaseFee { get; set; }
+    public decimal DeliveryFeePerKm { get; set; }
 }
