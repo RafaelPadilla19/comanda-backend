@@ -33,7 +33,7 @@ public sealed class RetentionJobEndpoint(ComandaDbContext db, IConfiguration con
     }
 }
 
-/// <summary>Marca PastDue a los tenants de plan pago vencidos más allá de la gracia.</summary>
+/// <summary>Marca PastDue a los tenants de plan pago vencidos más allá de la gracia, y baja a Starter los trials vencidos.</summary>
 public sealed class RenewalJobEndpoint(ComandaDbContext db, IConfiguration config, ILogger<RenewalJobEndpoint> logger)
     : JobEndpointBase
 {
@@ -43,6 +43,7 @@ public sealed class RenewalJobEndpoint(ComandaDbContext db, IConfiguration confi
     {
         if (!Authorized(config)) { await Send.ResponseAsync(new { ok = false }, 401, ct); return; }
         var marked = await MaintenanceJobs.SweepSubscriptionsAsync(db, logger, ct);
-        await Send.OkAsync(new { ok = true, marked }, ct);
+        var trialsEnded = await MaintenanceJobs.SweepTrialsAsync(db, logger, ct);
+        await Send.OkAsync(new { ok = true, marked, trialsEnded }, ct);
     }
 }

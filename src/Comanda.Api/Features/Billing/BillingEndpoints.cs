@@ -44,6 +44,7 @@ public sealed class GetBillingEndpoint(
             PriceMonthly = plan?.PriceMonthly ?? 0,
             Status = tenant.SubscriptionStatus,
             SubscriptionEndsAt = tenant.SubscriptionEndsAt,
+            TrialEndsAt = tenant.TrialEndsAt,
             Payments = history,
             Usage = mapper.Map<Domain.Abstractions.PlanUsage, PlanUsageDto>(usage),
         }, ct);

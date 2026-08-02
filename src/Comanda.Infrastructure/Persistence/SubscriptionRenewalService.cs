@@ -36,5 +36,6 @@ public sealed class SubscriptionRenewalService(IServiceScopeFactory scopeFactory
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ComandaDbContext>();
         await MaintenanceJobs.SweepSubscriptionsAsync(db, logger, ct);
+        await MaintenanceJobs.SweepTrialsAsync(db, logger, ct);
     }
 }

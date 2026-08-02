@@ -8,4 +8,7 @@ public static class SubscriptionPolicy
 
     /// <summary>Ventana para avisar "tu plan vence pronto".</summary>
     public const int ReminderDays = 3;
+
+    /// <summary>Meses de acceso Premium gratis para restaurantes nuevos (campaña mientras se consiguen los primeros clientes).</summary>
+    public const int TrialMonths = 6;
 }

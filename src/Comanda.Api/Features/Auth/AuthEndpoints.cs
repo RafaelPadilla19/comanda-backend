@@ -163,6 +163,7 @@ public sealed class MeEndpoint(IUserRepository users, IRepository<Tenant> tenant
         dto.TenantName = tenant?.Name ?? string.Empty;
         dto.SubscriptionStatus = tenant?.SubscriptionStatus ?? SubscriptionStatus.Active;
         dto.SubscriptionEndsAt = tenant?.SubscriptionEndsAt;
+        dto.TrialEndsAt = tenant?.TrialEndsAt;
 
         var usage = await planService.GetUsageAsync(ct);
         if (usage.HasPlan)

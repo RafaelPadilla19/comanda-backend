@@ -21,6 +21,8 @@ public sealed class UserDto
     /// <summary>Estado de la suscripción (para bloquear la app si está vencida/PastDue).</summary>
     public SubscriptionStatus SubscriptionStatus { get; set; }
     public DateTime? SubscriptionEndsAt { get; set; }
+    /// <summary>Fecha en que vence el trial de campaña (Premium gratis), si aplica.</summary>
+    public DateTime? TrialEndsAt { get; set; }
 }
 
 /// <summary>Funciones del plan que la UI usa para mostrar/ocultar secciones.</summary>
@@ -298,6 +300,8 @@ public sealed class BillingDto
     public decimal PriceMonthly { get; set; }
     public SubscriptionStatus Status { get; set; }
     public DateTime? SubscriptionEndsAt { get; set; }
+    /// <summary>Fecha en que vence el trial de campaña (Premium gratis), si aplica.</summary>
+    public DateTime? TrialEndsAt { get; set; }
     public List<SubscriptionPaymentDto> Payments { get; set; } = new();
     public PlanUsageDto? Usage { get; set; }
 }

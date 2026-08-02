@@ -55,4 +55,28 @@ public static class MaintenanceJobs
         if (overdue.Count > 0) await db.SaveChangesAsync(ct);
         return overdue.Count;
     }
+
+    /// <summary>Baja a Starter (gratis) los tenants cuyo trial de campaña (Premium gratis) ya venció. Devuelve cuántos afectó.</summary>
+    public static async Task<int> SweepTrialsAsync(ComandaDbContext db, ILogger logger, CancellationToken ct = default)
+    {
+        var expired = await db.Tenants.IgnoreQueryFilters()
+            .Where(t => t.SubscriptionStatus == SubscriptionStatus.Trial
+                && t.TrialEndsAt != null && t.TrialEndsAt < DateTime.UtcNow)
+            .ToListAsync(ct);
+        if (expired.Count == 0) return 0;
+
+        var starter = await db.Plans.Where(p => p.IsActive)
+            .OrderBy(p => p.PriceMonthly).ThenBy(p => p.SortOrder).FirstOrDefaultAsync(ct);
+        if (starter is null) return 0;
+
+        foreach (var t in expired)
+        {
+            t.PlanId = starter.Id;
+            t.SubscriptionStatus = SubscriptionStatus.Active;
+            logger.LogInformation("Trial vencido: «{Tenant}» bajó a {Plan} (trial terminó {End:yyyy-MM-dd}).",
+                t.Name, starter.Name, t.TrialEndsAt);
+        }
+        await db.SaveChangesAsync(ct);
+        return expired.Count;
+    }
 }
