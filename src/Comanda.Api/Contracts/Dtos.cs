@@ -169,6 +169,8 @@ public sealed class LoyaltyLookupDto
     public int Points { get; set; }
     public int RedeemRate { get; set; }
     public decimal RedeemableAmount { get; set; }  // US$ que puede canjear ahora
+    /// <summary>Nombre del cliente si ya hizo un pedido antes; vacío si es la primera vez.</summary>
+    public string CustomerName { get; set; } = string.Empty;
 }
 
 public sealed class CustomerDetailDto

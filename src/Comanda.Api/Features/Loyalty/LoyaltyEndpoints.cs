@@ -106,6 +106,7 @@ public sealed class PublicLoyaltyLookupEndpoint(
             Points = points,
             RedeemRate = tenant.LoyaltyRedeemRate,
             RedeemableAmount = tenant.LoyaltyRedeemRate > 0 ? points / tenant.LoyaltyRedeemRate : 0,
+            CustomerName = customer?.Name ?? string.Empty,
         }, ct);
     }
 }
