@@ -127,6 +127,7 @@ public sealed class PublicOrderRequest
     public double? CustomerLng { get; set; }
     public string? CouponCode { get; set; }                     // descuento (validado en el servidor)
     public bool RedeemPoints { get; set; }                      // canjear puntos de fidelización
+    public string? LoyaltyToken { get; set; }                   // prueba de que este dispositivo es el dueño del teléfono
     public bool PayOnline { get; set; }                         // iniciar pago en línea (PaymentsHub)
     public string? ReturnUrl { get; set; }                      // a dónde vuelve el cliente tras pagar (lo da el front)
     public decimal TipRestaurant { get; set; }                  // propina opcional para el restaurante
@@ -356,8 +357,12 @@ public sealed class PublicCreateOrderEndpoint(
         }
 
         // Canje de puntos (en US$ enteros): no excede los puntos del cliente ni el subtotal restante.
+        // Requiere el token del dispositivo que reclamó a este cliente (ver /public/loyalty/lookup):
+        // sin esto, cualquiera que solo conozca el teléfono ajeno podría gastar sus puntos.
+        var ownsLoyaltyToken = customer is not null && !string.IsNullOrEmpty(customer.LoyaltyToken)
+            && customer.LoyaltyToken == req.LoyaltyToken;
         var pointsRedeemed = 0;
-        if (req.RedeemPoints && loyaltyOn && customer is { Points: > 0 } && tenant!.LoyaltyRedeemRate > 0)
+        if (req.RedeemPoints && ownsLoyaltyToken && loyaltyOn && customer is { Points: > 0 } && tenant!.LoyaltyRedeemRate > 0)
         {
             var maxByPoints = customer.Points / tenant.LoyaltyRedeemRate;
             var maxByOrder = (int)Math.Floor(itemsSubtotal - discount);

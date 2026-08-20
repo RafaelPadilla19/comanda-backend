@@ -17,6 +17,10 @@ public class Customer : Entity, ITenantScoped
     public int Points { get; set; }              // saldo de puntos de fidelización
     public DateTime FirstOrderAt { get; set; }
     public DateTime LastOrderAt { get; set; }
+    /// <summary>Token secreto de fidelización: identifica al dueño real del teléfono sin exponerlo.
+    /// Se entrega una sola vez (al primer dispositivo que lo reclama) y solo ese dispositivo puede
+    /// canjear sus puntos después. Evita que cualquiera que conozca el teléfono canjee puntos ajenos.</summary>
+    public string? LoyaltyToken { get; set; }
 
     /// <summary>Registra un pedido del cliente actualizando sus estadísticas.</summary>
     public void RegisterOrder(decimal amount, DateTime when)

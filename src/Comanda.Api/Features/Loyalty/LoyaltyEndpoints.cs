@@ -69,16 +69,21 @@ public sealed class LoyaltyLookupRequest
 {
     public Guid BranchId { get; set; }
     public string Phone { get; set; } = string.Empty;
+    /// <summary>Token guardado en este dispositivo de una consulta anterior. Si viene y coincide,
+    /// se usa en vez del teléfono (así el dispositivo dueño no tiene que volver a escribirlo).</summary>
+    public string Token { get; set; } = string.Empty;
 }
 
 public sealed class PublicLoyaltyLookupEndpoint(
-    ITenantResolver resolver, IRepository<Tenant> tenants, IRepository<Customer> customers, ICurrentTenant current)
+    ITenantResolver resolver, IRepository<Tenant> tenants, IRepository<Customer> customers,
+    ICurrentTenant current, IUnitOfWork uow)
     : Endpoint<LoyaltyLookupRequest, LoyaltyLookupDto>
 {
     public override void Configure()
     {
         Post("/public/loyalty/lookup");
         AllowAnonymous();
+        Options(b => b.RequireRateLimiting("loyalty-lookup"));
     }
 
     public override async Task HandleAsync(LoyaltyLookupRequest req, CancellationToken ct)
@@ -96,9 +101,39 @@ public sealed class PublicLoyaltyLookupEndpoint(
             return;
         }
 
-        var phoneKey = new string(req.Phone.Where(char.IsDigit).ToArray());
-        var customer = phoneKey.Length > 0 ? await customers.FirstOrDefaultAsync(c => c.Phone == phoneKey, ct) : null;
+        // Si el dispositivo ya trae un token válido, ese manda (no expone nada nuevo).
+        // Si no, se busca por teléfono como antes (primer contacto / dispositivo nuevo).
+        Customer? customer = null;
+        if (!string.IsNullOrWhiteSpace(req.Token))
+            customer = await customers.FirstOrDefaultAsync(c => c.LoyaltyToken == req.Token, ct);
+
+        var tokenAlreadyOwned = customer is not null;
+        if (customer is null)
+        {
+            var phoneKey = new string(req.Phone.Where(char.IsDigit).ToArray());
+            customer = phoneKey.Length > 0 ? await customers.FirstOrDefaultAsync(c => c.Phone == phoneKey, ct) : null;
+        }
+
         var points = customer?.Points ?? 0;
+
+        // Solo se emite el token la primera vez que alguien reclama a este cliente (nadie más lo
+        // había consultado antes). Si ya tenía token y no vino por ese mismo token, no se revela:
+        // así un desconocido que solo sabe el teléfono no puede robar el token para canjear puntos.
+        var tokenToReturn = string.Empty;
+        if (customer is not null)
+        {
+            if (tokenAlreadyOwned)
+            {
+                tokenToReturn = req.Token;
+            }
+            else if (string.IsNullOrEmpty(customer.LoyaltyToken))
+            {
+                customer.LoyaltyToken = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
+                customers.Update(customer);
+                await uow.SaveChangesAsync(ct);
+                tokenToReturn = customer.LoyaltyToken;
+            }
+        }
 
         await Send.OkAsync(new LoyaltyLookupDto
         {
@@ -107,6 +142,7 @@ public sealed class PublicLoyaltyLookupEndpoint(
             RedeemRate = tenant.LoyaltyRedeemRate,
             RedeemableAmount = tenant.LoyaltyRedeemRate > 0 ? points / tenant.LoyaltyRedeemRate : 0,
             CustomerName = customer?.Name ?? string.Empty,
+            Token = tokenToReturn,
         }, ct);
     }
 }

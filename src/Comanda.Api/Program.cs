@@ -64,6 +64,18 @@ builder.Services.AddRateLimiter(o =>
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0,
             }));
+    // Consulta pública de puntos por teléfono: sin esto, alguien podría automatizar miles de
+    // números y enumerar clientes (nombre + saldo). No reemplaza verificar dueño del teléfono,
+    // pero corta la fuerza bruta.
+    o.AddPolicy("loyalty-lookup", httpContext =>
+        System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 8,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            }));
 });
 
 // ---- FastEndpoints + RMapper + Swagger ----

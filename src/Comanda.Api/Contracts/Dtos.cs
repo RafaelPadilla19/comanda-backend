@@ -171,6 +171,10 @@ public sealed class LoyaltyLookupDto
     public decimal RedeemableAmount { get; set; }  // US$ que puede canjear ahora
     /// <summary>Nombre del cliente si ya hizo un pedido antes; vacío si es la primera vez.</summary>
     public string CustomerName { get; set; } = string.Empty;
+    /// <summary>Token secreto para guardar en este dispositivo. Solo viene la primera vez que se
+    /// reclama (o si ya lo tenías); si otro dispositivo consulta el mismo teléfono, viene vacío
+    /// para no filtrar el token real.</summary>
+    public string Token { get; set; } = string.Empty;
 }
 
 public sealed class CustomerDetailDto
