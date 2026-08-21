@@ -465,6 +465,31 @@ public sealed class PublicCreateOrderEndpoint(
     };
 }
 
+// ---------------- Seguimiento del pedido (link persistente, tipo tracking de logística) ----------------
+
+public sealed class OrderTrackingRequest { public Guid OrderId { get; set; } }
+
+/// <summary>Estado del pedido para el link de seguimiento del cliente (compartible, se puede volver
+/// a abrir cuando quiera — a diferencia de la pantalla de confirmación, que solo aparece una vez).
+/// No requiere sesión: el Id del pedido es un GUID, no adivinable.</summary>
+public sealed class OrderTrackingEndpoint(ITenantResolver resolver, IRepository<Order> orders, IRMapper mapper)
+    : Endpoint<OrderTrackingRequest, OrderDto>
+{
+    public override void Configure() { Get("/public/orders/{orderId}"); AllowAnonymous(); }
+
+    public override async Task HandleAsync(OrderTrackingRequest req, CancellationToken ct)
+    {
+        if (!await resolver.ResolveByOrderAsync(req.OrderId, ct)
+            || await orders.GetByIdAsync(req.OrderId, ct) is not { } order)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(mapper.Map<Order, OrderDto>(order), ct);
+    }
+}
+
 // ---------------- Rastreo en vivo del rider (para la pantalla de confirmación del pedido) ----------------
 
 public sealed class OrderRiderLocationRequest { public Guid OrderId { get; set; } }
