@@ -32,4 +32,13 @@ public sealed class TenantResolver(ComandaDbContext db, ICurrentTenant current) 
         current.Set(tenant.Id);
         return true;
     }
+
+    public async Task<bool> ResolveByOrderAsync(Guid orderId, CancellationToken ct = default)
+    {
+        var tenantId = await db.Orders.IgnoreQueryFilters()
+            .Where(o => o.Id == orderId).Select(o => o.TenantId).FirstOrDefaultAsync(ct);
+        if (tenantId == Guid.Empty) return false;
+        current.Set(tenantId);
+        return true;
+    }
 }

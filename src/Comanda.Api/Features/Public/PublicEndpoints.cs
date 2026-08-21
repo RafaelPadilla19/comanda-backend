@@ -464,3 +464,42 @@ public sealed class PublicCreateOrderEndpoint(
         _ => "En el local",
     };
 }
+
+// ---------------- Rastreo en vivo del rider (para la pantalla de confirmación del pedido) ----------------
+
+public sealed class OrderRiderLocationRequest { public Guid OrderId { get; set; } }
+
+/// <summary>El cliente consulta dónde va su rider mientras espera el pedido. Sondeado cada
+/// pocos segundos desde el navegador; no requiere sesión (el Id del pedido es un GUID, no adivinable).</summary>
+public sealed class OrderRiderLocationEndpoint(
+    ITenantResolver resolver, IRepository<Order> orders, IRidersClient riders)
+    : Endpoint<OrderRiderLocationRequest, OrderRiderLocationDto>
+{
+    public override void Configure() { Get("/public/orders/{orderId}/rider-location"); AllowAnonymous(); }
+
+    public override async Task HandleAsync(OrderRiderLocationRequest req, CancellationToken ct)
+    {
+        if (!await resolver.ResolveByOrderAsync(req.OrderId, ct)
+            || await orders.GetByIdAsync(req.OrderId, ct) is not { RiderJobId: { } jobId })
+        {
+            await Send.OkAsync(new OrderRiderLocationDto { Available = false }, ct);
+            return;
+        }
+
+        var loc = await riders.GetJobLocationAsync(jobId, ct);
+        if (loc is null)
+        {
+            await Send.OkAsync(new OrderRiderLocationDto { Available = false }, ct);
+            return;
+        }
+
+        await Send.OkAsync(new OrderRiderLocationDto
+        {
+            Available = true,
+            JobStatus = loc.JobStatus,
+            Lat = loc.Lat,
+            Lng = loc.Lng,
+            UpdatedAt = loc.UpdatedAt,
+        }, ct);
+    }
+}

@@ -6,6 +6,16 @@ namespace Comanda.Api.Contracts;
 // (requisito de RMapper, que crea la instancia destino y asigna propiedades).
 // Los enums se serializan como texto (JsonStringEnumConverter).
 
+/// <summary>Ubicación en vivo del rider de un pedido, para el mapa del cliente en la tienda pública.</summary>
+public sealed class OrderRiderLocationDto
+{
+    public bool Available { get; set; }        // false si el pedido no tiene rider externo asignado
+    public string JobStatus { get; set; } = string.Empty;
+    public double? Lat { get; set; }
+    public double? Lng { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+}
+
 public sealed class UserDto
 {
     public Guid Id { get; set; }
@@ -103,6 +113,8 @@ public sealed class OrderDto
     public decimal DeliveryFee { get; set; }
     public string DeliveryZoneName { get; set; } = string.Empty;
     public double? DeliveryDistanceKm { get; set; }
+    public double? CustomerLat { get; set; }
+    public double? CustomerLng { get; set; }
     public Guid? DriverId { get; set; }
     public string DriverName { get; set; } = string.Empty;
     public DateTime? DispatchedAt { get; set; }

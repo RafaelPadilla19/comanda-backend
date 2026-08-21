@@ -11,4 +11,7 @@ public interface ITenantResolver
 
     /// <summary>Fija el tenant a partir del slug del restaurante. False si no existe o está inactivo.</summary>
     Task<bool> ResolveBySlugAsync(string slug, CancellationToken ct = default);
+
+    /// <summary>Fija el tenant a partir del Id de un pedido. False si no existe.</summary>
+    Task<bool> ResolveByOrderAsync(Guid orderId, CancellationToken ct = default);
 }

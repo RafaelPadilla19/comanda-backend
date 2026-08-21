@@ -53,5 +53,26 @@ public sealed class RidersHubClient(HttpClient http, IConfiguration config, ILog
         }
     }
 
+    public async Task<RiderLocationResult?> GetJobLocationAsync(Guid jobId, CancellationToken ct = default)
+    {
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get, $"/internal/jobs/{jobId}/location");
+            req.Headers.Add("X-Api-Key", config["Services:RidersApiKey"] ?? string.Empty);
+
+            var res = await http.SendAsync(req, ct);
+            if (!res.IsSuccessStatusCode) return null;
+
+            var dto = await res.Content.ReadFromJsonAsync<LocationResponse>(ct);
+            return dto is null ? null : new RiderLocationResult(dto.JobStatus, dto.Lat, dto.Lng, dto.UpdatedAt);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error consultando ubicación del rider (job {JobId})", jobId);
+            return null;
+        }
+    }
+
     private sealed record JobResponse(Guid Id);
+    private sealed record LocationResponse(string JobStatus, double? Lat, double? Lng, DateTime? UpdatedAt);
 }
