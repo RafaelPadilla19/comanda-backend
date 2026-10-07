@@ -32,6 +32,7 @@ public class ComandaDbContext(DbContextOptions<ComandaDbContext> options, ICurre
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Coupon> Coupons => Set<Coupon>();
     public DbSet<SubscriptionPayment> SubscriptionPayments => Set<SubscriptionPayment>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -90,6 +91,14 @@ public class ComandaDbContext(DbContextOptions<ComandaDbContext> options, ICurre
             e.Property(x => x.Name).HasMaxLength(160).IsRequired();
             e.HasOne(x => x.Branch).WithMany().HasForeignKey(x => x.BranchId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<RefreshToken>(e =>
+        {
+            e.Property(x => x.Token).HasMaxLength(200).IsRequired();
+            e.Property(x => x.ReplacedByToken).HasMaxLength(200);
+            e.HasIndex(x => x.Token).IsUnique();   // único: se busca directo por su valor
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<Branch>(e =>

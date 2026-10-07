@@ -9,4 +9,5 @@ public sealed class JwtOptions
     public string Issuer { get; set; } = "Comanda";
     public string Audience { get; set; } = "ComandaClients";
     public int ExpiryMinutes { get; set; } = 480; // 8 horas
+    public int RefreshTokenExpirationDays { get; set; } = 30;
 }
