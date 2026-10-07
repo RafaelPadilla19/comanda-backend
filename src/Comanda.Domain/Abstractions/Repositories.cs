@@ -7,6 +7,9 @@ public interface IUserRepository : IRepository<User>
 {
     Task<User?> GetByEmailAsync(string email, CancellationToken ct = default);
     Task<IReadOnlyList<User>> ListWithBranchAsync(CancellationToken ct = default);
+    /// <summary>Busca por Id ignorando el filtro de tenant — necesario en /auth/refresh-token,
+    /// que es anónimo (sin JWT) y por lo tanto no tiene tenant ambiente todavía.</summary>
+    Task<User?> GetByIdIgnoringTenantAsync(Guid id, CancellationToken ct = default);
 }
 
 /// <summary>Consultas de pedidos con sus líneas.</summary>

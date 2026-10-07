@@ -11,6 +11,11 @@ public sealed class UserRepository(ComandaDbContext db) : Repository<User>(db), 
         => Db.Users.IgnoreQueryFilters().Include(u => u.Tenant)
             .FirstOrDefaultAsync(u => u.Email == email, ct);
 
+    public Task<User?> GetByIdIgnoringTenantAsync(Guid id, CancellationToken ct = default)
+        // Igual que GetByEmailAsync: /auth/refresh-token es anónimo (sin JWT), no hay tenant
+        // ambiente todavía — el filtro global dejaría esto en null siempre.
+        => Db.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == id, ct);
+
     public async Task<IReadOnlyList<User>> ListWithBranchAsync(CancellationToken ct = default)
         => await Db.Users.AsNoTracking().Include(u => u.Branch).OrderBy(u => u.Name).ToListAsync(ct);
 }

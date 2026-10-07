@@ -209,7 +209,7 @@ public sealed class RefreshTokenEndpoint(
             return;
         }
 
-        var user = await users.GetByIdAsync(stored.UserId, ct);
+        var user = await users.GetByIdIgnoringTenantAsync(stored.UserId, ct);
         if (user is null || !user.IsActive)
         {
             await HttpContext.SendErrorAsync(
