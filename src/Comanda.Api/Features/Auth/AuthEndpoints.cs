@@ -185,6 +185,31 @@ public sealed class RefreshTokenValidator : Validator<RefreshTokenRequest>
         => RuleFor(x => x.RefreshToken).NotEmpty().WithMessage("Falta el refresh token.");
 }
 
+/// <summary>Invalida un refresh token (logout real, no solo del lado del cliente). Idempotente
+/// y siempre responde OK: si el token ya no existe o ya estaba revocado, no hay nada que avisar
+/// — el objetivo final (que ese token ya no sirva) se cumple de cualquier forma.</summary>
+public sealed class RevokeTokenEndpoint(IRepository<RefreshToken> refreshTokens, IUnitOfWork uow)
+    : Endpoint<RefreshTokenRequest>
+{
+    public override void Configure()
+    {
+        Post("/auth/revoke-token");
+        AllowAnonymous();
+    }
+
+    public override async Task HandleAsync(RefreshTokenRequest req, CancellationToken ct)
+    {
+        var stored = await refreshTokens.FirstOrDefaultAsync(r => r.Token == req.RefreshToken, ct);
+        if (stored is not null && stored.RevokedAt is null)
+        {
+            stored.RevokedAt = DateTime.UtcNow;
+            refreshTokens.Update(stored);
+            await uow.SaveChangesAsync(ct);
+        }
+        await Send.NoContentAsync(ct);
+    }
+}
+
 /// <summary>Canjea un refresh token vigente por una sesión nueva. Rota el refresh token (revoca
 /// el usado, emite uno nuevo) — un refresh token usado dos veces falla la segunda.</summary>
 public sealed class RefreshTokenEndpoint(
