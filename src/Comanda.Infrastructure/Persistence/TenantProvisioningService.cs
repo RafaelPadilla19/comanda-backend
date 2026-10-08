@@ -27,15 +27,13 @@ public sealed class TenantProvisioningService(
 
         var newTenant = new Tenant { Name = restaurantName.Trim(), Slug = await UniqueSlugAsync(restaurantName, ct), Country = code };
 
-        // Campaña de lanzamiento: acceso Premium gratis por unos meses mientras se consiguen los primeros
-        // clientes (sin pedir tarjeta). Al vencer, MaintenanceJobs.SweepTrialsAsync los baja a Starter solo.
-        var trialPlan = await db.Plans.FirstOrDefaultAsync(p => p.IsActive && p.Name == "Premium", ct)
-            ?? await db.Plans.Where(p => p.IsActive).OrderBy(p => p.PriceMonthly).ThenBy(p => p.SortOrder).FirstOrDefaultAsync(ct);
-        if (trialPlan is not null)
+        // Plan inicial: el más económico activo (Starter, freemium). Queda activo de inmediato.
+        var starter = await db.Plans.Where(p => p.IsActive)
+            .OrderBy(p => p.PriceMonthly).ThenBy(p => p.SortOrder).FirstOrDefaultAsync(ct);
+        if (starter is not null)
         {
-            newTenant.PlanId = trialPlan.Id;
-            newTenant.SubscriptionStatus = SubscriptionStatus.Trial;
-            newTenant.TrialEndsAt = DateTime.UtcNow.AddMonths(SubscriptionPolicy.TrialMonths);
+            newTenant.PlanId = starter.Id;
+            newTenant.SubscriptionStatus = SubscriptionStatus.Active;
         }
 
         db.Tenants.Add(newTenant);
