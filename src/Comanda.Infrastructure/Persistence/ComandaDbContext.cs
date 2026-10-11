@@ -133,6 +133,8 @@ public class ComandaDbContext(DbContextOptions<ComandaDbContext> options, ICurre
             // Variantes y extras como JSON (nombre + costo adicional).
             e.OwnsMany(x => x.Variants, o => o.ToJson());
             e.OwnsMany(x => x.Extras, o => o.ToJson());
+            // Receta (BOM) como JSON: insumo + cantidad consumida por unidad vendida.
+            e.OwnsMany(x => x.Recipe, o => o.ToJson());
         });
 
         b.Entity<Order>(e =>

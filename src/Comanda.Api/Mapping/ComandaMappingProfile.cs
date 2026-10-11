@@ -20,6 +20,7 @@ public sealed class ComandaMappingProfile : Profile
         CreateMap<Category, CategoryDto>();
 
         CreateMap<ProductOption, ProductOptionDto>();
+        CreateMap<RecipeLine, RecipeLineDto>();
 
         CreateMap<Product, ProductDto>()
             .ForMember(d => d.CategoryName, o => o.MapFrom(s => s.Category != null ? s.Category.Name : string.Empty));

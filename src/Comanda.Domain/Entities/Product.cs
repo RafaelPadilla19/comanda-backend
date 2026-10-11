@@ -14,6 +14,9 @@ public class Product : Entity, ITenantScoped
     public bool IsAvailable { get; set; } = true;
     public List<ProductOption> Variants { get; set; } = new();
     public List<ProductOption> Extras { get; set; } = new();
+    /// <summary>Receta (BOM): insumos y cantidad que consume una unidad de este producto. Vacía =
+    /// sin receta definida (comportamiento de hoy, sin descuento de inventario al vender).</summary>
+    public List<RecipeLine> Recipe { get; set; } = new();
 
     public Guid CategoryId { get; set; }
     public Category? Category { get; set; }

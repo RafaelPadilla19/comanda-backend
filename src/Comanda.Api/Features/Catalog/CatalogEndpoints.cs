@@ -20,6 +20,18 @@ internal static class ProductOptions
             .ToList();
 }
 
+/// <summary>Convierte las líneas de receta del request a value objects, descartando filas
+/// incompletas (sin insumo elegido o cantidad en cero) y colapsando duplicados del mismo insumo.</summary>
+internal static class RecipeLines
+{
+    public static List<RecipeLine> From(IEnumerable<RecipeLineDto> lines) =>
+        lines
+            .Where(l => l.InventoryItemId != Guid.Empty && l.Quantity > 0)
+            .GroupBy(l => l.InventoryItemId)
+            .Select(g => new RecipeLine { InventoryItemId = g.Key, Quantity = g.Sum(l => l.Quantity) })
+            .ToList();
+}
+
 // ---------------- Categorías ----------------
 
 public sealed class ListCategoriesEndpoint(IRepository<Category> categories, IRMapper mapper)
@@ -168,6 +180,7 @@ public sealed class SaveProductRequest
     public Guid CategoryId { get; set; }
     public List<ProductOptionDto> Variants { get; set; } = new();
     public List<ProductOptionDto> Extras { get; set; } = new();
+    public List<RecipeLineDto> Recipe { get; set; } = new();
     public bool IsAvailable { get; set; } = true;
 }
 
@@ -206,7 +219,8 @@ public sealed class CreateProductEndpoint(
         {
             Name = req.Name.Trim(), Price = req.Price, Emoji = req.Emoji, Tint = req.Tint,
             Description = req.Description.Trim(), CategoryId = req.CategoryId,
-            Variants = ProductOptions.From(req.Variants), Extras = ProductOptions.From(req.Extras), IsAvailable = req.IsAvailable,
+            Variants = ProductOptions.From(req.Variants), Extras = ProductOptions.From(req.Extras),
+            Recipe = RecipeLines.From(req.Recipe), IsAvailable = req.IsAvailable,
         };
         await products.AddAsync(product, ct);
         await uow.SaveChangesAsync(ct);
@@ -243,6 +257,7 @@ public sealed class UpdateProductEndpoint(
         product.CategoryId = req.CategoryId;
         product.Variants = ProductOptions.From(req.Variants);
         product.Extras = ProductOptions.From(req.Extras);
+        product.Recipe = RecipeLines.From(req.Recipe);
         product.IsAvailable = req.IsAvailable;
         products.Update(product);
         await uow.SaveChangesAsync(ct);

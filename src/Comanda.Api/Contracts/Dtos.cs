@@ -91,8 +91,20 @@ public sealed class ProductDto
     public bool IsAvailable { get; set; }
     public List<ProductOptionDto> Variants { get; set; } = new();
     public List<ProductOptionDto> Extras { get; set; } = new();
+    /// <summary>Receta (BOM): insumos y cantidad consumida por unidad vendida. Interno — no se
+    /// expone en <see cref="PublicProductDto"/>, el cliente final no la necesita.</summary>
+    public List<RecipeLineDto> Recipe { get; set; } = new();
     public Guid CategoryId { get; set; }
     public string CategoryName { get; set; } = string.Empty;
+}
+
+/// <summary>Línea de receta: cuánto de un insumo consume una unidad del producto. El nombre/unidad
+/// del insumo no se denormaliza aquí — el cliente ya tiene el catálogo de Inventario cargado y
+/// resuelve el `InventoryItemId` contra eso, igual que hace con categorías en otras pantallas.</summary>
+public sealed class RecipeLineDto
+{
+    public Guid InventoryItemId { get; set; }
+    public decimal Quantity { get; set; }
 }
 
 public sealed class OrderItemDto

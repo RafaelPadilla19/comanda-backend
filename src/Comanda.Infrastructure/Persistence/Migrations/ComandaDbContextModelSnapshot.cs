@@ -1299,9 +1299,34 @@ namespace Comanda.Infrastructure.Persistence.Migrations
                                 .HasForeignKey("ProductId");
                         });
 
+                    b.OwnsMany("Comanda.Domain.Entities.RecipeLine", "Recipe", b1 =>
+                        {
+                            b1.Property<Guid>("ProductId");
+
+                            b1.Property<int>("__synthesizedOrdinal")
+                                .ValueGeneratedOnAdd();
+
+                            b1.Property<Guid>("InventoryItemId");
+
+                            b1.Property<decimal>("Quantity");
+
+                            b1.HasKey("ProductId", "__synthesizedOrdinal");
+
+                            b1.ToTable("Products");
+
+                            b1
+                                .ToJson("Recipe")
+                                .HasColumnType("jsonb");
+
+                            b1.WithOwner()
+                                .HasForeignKey("ProductId");
+                        });
+
                     b.Navigation("Category");
 
                     b.Navigation("Extras");
+
+                    b.Navigation("Recipe");
 
                     b.Navigation("Variants");
                 });
