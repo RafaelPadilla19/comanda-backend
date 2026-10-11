@@ -361,7 +361,7 @@ public static class DbSeeder
     }
 
     /// <summary>
-    /// Siembra el catálogo de métodos de pago por país de Centroamérica (global, editable en
+    /// Siembra el catálogo de métodos de pago por país soportado (global, editable en
     /// /platform). Idempotente: agrega solo los que falten por (país, clave).
     /// </summary>
     private static async Task EnsureCountryPaymentMethodsAsync(ComandaDbContext db, CancellationToken ct)
@@ -382,7 +382,7 @@ public static class DbSeeder
             ("pay-online", "Pago en línea", "Checkout web del menú digital (Wompi)", "🌐", true, false, 9),
         };
 
-        var countries = new[] { "SV", "GT", "HN", "NI", "CR", "PA" };
+        var countries = new[] { "SV", "GT", "HN", "NI", "CR", "PA", "CO" };
         var existing = await db.CountryPaymentMethods.ToListAsync(ct);
 
         foreach (var country in countries)

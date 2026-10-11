@@ -10,7 +10,7 @@ namespace Comanda.Infrastructure.Persistence;
 public sealed class TenantProvisioningService(
     ComandaDbContext db, ICurrentTenant tenant, IPasswordHasher hasher) : ITenantProvisioningService
 {
-    private static readonly string[] SupportedCountries = ["SV", "GT", "HN", "NI", "CR", "PA"];
+    private static readonly string[] SupportedCountries = ["SV", "GT", "HN", "NI", "CR", "PA", "CO"];
 
     public async Task<Result<User>> RegisterAsync(
         string restaurantName, string adminName, string email, string password, string country, CancellationToken ct = default)
