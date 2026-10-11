@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Comanda.Api.Common;
 using Comanda.Api.Contracts;
 using Comanda.Api.Mapping;
@@ -200,7 +201,10 @@ public sealed class MoveOrderRequest
     public int Direction { get; set; } // +1 avanza, -1 retrocede
 }
 
-public sealed class MoveOrderEndpoint(IOrderRepository orders, IUnitOfWork uow, IRMapper mapper)
+public sealed class MoveOrderEndpoint(
+    IOrderRepository orders, IProductRepository products,
+    IRepository<InventoryItem> inventoryItems, IRepository<InventoryMovement> movements,
+    IUnitOfWork uow, IRMapper mapper)
     : Endpoint<MoveOrderRequest, OrderDto>
 {
     public override void Configure() => Post("/orders/{id}/move");
@@ -226,11 +230,56 @@ public sealed class MoveOrderEndpoint(IOrderRepository orders, IUnitOfWork uow, 
             return;
         }
 
+        // Solo al llegar a Entregados por primera vez (nunca al retroceder ni al re-mover un
+        // pedido que ya estaba entregado) se descuenta inventario — evita doble descuento.
+        var reachingDelivered = next == (int)OrderStatus.Entregados && order.Status != OrderStatus.Entregados;
+
         order.Status = (OrderStatus)next;
         orders.Update(order);
+
+        if (reachingDelivered)
+        {
+            var who = User.FindFirstValue(ClaimTypes.Name);
+            await ConsumeRecipeAsync(order, products, inventoryItems, movements, who, ct);
+        }
+
         await uow.SaveChangesAsync(ct);
 
         await Send.OkAsync(mapper.Map<Order, OrderDto>(order), ct);
+    }
+
+    /// <summary>Descuenta del inventario los insumos de la receta de cada producto del pedido
+    /// (cantidad de receta × cantidad vendida) y deja rastro en el kardex. Un producto sin receta
+    /// definida (la mayoría, hoy) simplemente no mueve nada — comportamiento intacto.</summary>
+    private static async Task ConsumeRecipeAsync(
+        Order order, IProductRepository products, IRepository<InventoryItem> inventoryItems,
+        IRepository<InventoryMovement> movements, string? userName, CancellationToken ct)
+    {
+        var productIds = order.Items.Select(i => i.ProductId).Distinct().ToList();
+        var productMap = (await products.ListAsync(p => productIds.Contains(p.Id), ct)).ToDictionary(p => p.Id);
+
+        // Un insumo puede repetirse en varios productos del mismo pedido: se suma todo antes de tocar stock.
+        var consumption = new Dictionary<Guid, decimal>();
+        foreach (var line in order.Items)
+        {
+            if (!productMap.TryGetValue(line.ProductId, out var product) || product.Recipe.Count == 0) continue;
+            foreach (var r in product.Recipe)
+                consumption[r.InventoryItemId] = consumption.GetValueOrDefault(r.InventoryItemId) + r.Quantity * line.Quantity;
+        }
+        if (consumption.Count == 0) return;
+
+        var who = string.IsNullOrWhiteSpace(userName) ? "Sistema (venta)" : userName;
+        foreach (var (itemId, qty) in consumption)
+        {
+            if (qty <= 0 || await inventoryItems.GetByIdAsync(itemId, ct) is not { } item) continue;
+            item.Stock = Math.Max(0, Math.Round(item.Stock - qty, 3));
+            inventoryItems.Update(item);
+            await movements.AddAsync(new InventoryMovement
+            {
+                InventoryItemId = item.Id, Reason = InventoryMovementReason.Venta, Delta = -qty,
+                ResultingStock = item.Stock, Note = $"Pedido {order.Code}", CreatedByName = who,
+            }, ct);
+        }
     }
 }
 

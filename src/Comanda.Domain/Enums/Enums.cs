@@ -68,4 +68,6 @@ public enum InventoryMovementReason
     Merma = 2,
     /// <summary>Corrección de conteo físico (puede ser positivo o negativo).</summary>
     Ajuste = 3,
+    /// <summary>Descuento automático al entregar un pedido, según la receta del producto (salida).</summary>
+    Venta = 4,
 }
