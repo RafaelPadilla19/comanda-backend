@@ -140,7 +140,7 @@ public sealed class RegisterValidator : Validator<RegisterRequest>
         RuleFor(x => x.Password).NotEmpty().WithMessage("La contraseña es obligatoria.")
             .MinimumLength(8).WithMessage("La contraseña debe tener al menos 8 caracteres.");
         RuleFor(x => x.Country).NotEmpty().WithMessage("Selecciona tu país.")
-            .Must(c => Comanda.Api.Features.Settings.Countries.IsValid((c ?? string.Empty).Trim().ToUpperInvariant()))
+            .Must(c => Comanda.Domain.Common.SupportedCountries.IsValid((c ?? string.Empty).Trim().ToUpperInvariant()))
             .WithMessage("País no soportado.");
     }
 }
@@ -358,6 +358,9 @@ public sealed class MeEndpoint(IUserRepository users, IRepository<Tenant> tenant
         dto.SubscriptionStatus = tenant?.SubscriptionStatus ?? SubscriptionStatus.Active;
         dto.SubscriptionEndsAt = tenant?.SubscriptionEndsAt;
         dto.TrialEndsAt = tenant?.TrialEndsAt;
+        dto.Currency = tenant?.Currency ?? "USD";
+        dto.CurrencySymbol = tenant?.CurrencySymbol ?? "$";
+        dto.TaxRate = tenant?.TaxRate ?? 0.13m;
 
         var usage = await planService.GetUsageAsync(ct);
         if (usage.HasPlan)

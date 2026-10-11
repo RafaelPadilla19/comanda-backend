@@ -12,9 +12,18 @@ public class Tenant : Entity
     public string Name { get; set; } = string.Empty;
     /// <summary>Identificador legible y único para URLs (p.ej. "sabores-del-puerto").</summary>
     public string Slug { get; set; } = string.Empty;
-    /// <summary>País del restaurante (ISO-2: SV, GT, HN, NI, CR, PA). Lo elige el dueño al registrarse; sin valor por defecto.</summary>
+    /// <summary>País del restaurante (ISO-2: SV, GT, HN, NI, CR, PA, CO...). Lo elige el dueño al registrarse; sin valor por defecto.</summary>
     public string Country { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
+
+    /// <summary>Moneda en la que el restaurante factura (ISO 4217, p.ej. "USD", "COP"). Se
+    /// precarga según el país al registrarse, pero el dueño puede cambiarla en Configuración.</summary>
+    public string Currency { get; set; } = "USD";
+    /// <summary>Símbolo mostrado en la UI (p.ej. "$", "Q", "₡") — no siempre coincide 1:1 con el código ISO.</summary>
+    public string CurrencySymbol { get; set; } = "$";
+    /// <summary>Tasa de impuesto (IVA/ISV/ITBMS) aplicada, como fracción (0.13 = 13%). Los precios
+    /// del menú se asumen con impuesto incluido; esta tasa solo se usa para desglosarlo en recibos.</summary>
+    public decimal TaxRate { get; set; } = 0.13m;
 
     // Suscripción al SaaS (nivel plataforma)
     public Guid? PlanId { get; set; }

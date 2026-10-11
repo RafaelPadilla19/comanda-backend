@@ -33,6 +33,12 @@ public sealed class UserDto
     public DateTime? SubscriptionEndsAt { get; set; }
     /// <summary>Fecha en que vence el trial de campaña (Premium gratis), si aplica.</summary>
     public DateTime? TrialEndsAt { get; set; }
+    /// <summary>Moneda del restaurante (ISO 4217, p.ej. "USD"), para formatear montos en la UI.</summary>
+    public string Currency { get; set; } = "USD";
+    /// <summary>Símbolo de moneda a mostrar (p.ej. "$", "Q", "₡").</summary>
+    public string CurrencySymbol { get; set; } = "$";
+    /// <summary>Tasa de impuesto como fracción (0.13 = 13%), para el desglose de IVA/ISV/ITBMS en recibos.</summary>
+    public decimal TaxRate { get; set; } = 0.13m;
 }
 
 /// <summary>Funciones del plan que la UI usa para mostrar/ocultar secciones.</summary>
@@ -384,6 +390,12 @@ public sealed class PublicMenuDto
     public double? CoverageRadiusKm { get; set; }
     public decimal DeliveryBaseFee { get; set; }
     public decimal DeliveryFeePerKm { get; set; }
+
+    /// <summary>Moneda y tasa de impuesto del restaurante, para que la tienda pública (sin sesión)
+    /// muestre los precios con el símbolo e IVA/ISV correctos sin asumir USD/13% fijo.</summary>
+    public string Currency { get; set; } = "USD";
+    public string CurrencySymbol { get; set; } = "$";
+    public decimal TaxRate { get; set; } = 0.13m;
 }
 
 public sealed class CashMovementDto
@@ -435,6 +447,16 @@ public sealed class PaymentMethodDto
 public sealed class CountryDto
 {
     public string Country { get; set; } = "SV";
+}
+
+/// <summary>Moneda e impuesto del restaurante (lectura/edición en Configuración). Precargados
+/// según el país al registrarse, editables después sin depender de soporte.</summary>
+public sealed class BusinessSettingsDto
+{
+    public string Currency { get; set; } = "USD";
+    public string CurrencySymbol { get; set; } = "$";
+    /// <summary>Fracción (0.13 = 13%), no porcentaje.</summary>
+    public decimal TaxRate { get; set; } = 0.13m;
 }
 
 /// <summary>Método de pago del catálogo por país (administrado en /platform).</summary>

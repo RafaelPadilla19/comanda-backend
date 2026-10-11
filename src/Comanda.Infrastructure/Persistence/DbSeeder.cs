@@ -382,7 +382,7 @@ public static class DbSeeder
             ("pay-online", "Pago en línea", "Checkout web del menú digital (Wompi)", "🌐", true, false, 9),
         };
 
-        var countries = new[] { "SV", "GT", "HN", "NI", "CR", "PA", "CO" };
+        var countries = Comanda.Domain.Common.SupportedCountries.Codes;
         var existing = await db.CountryPaymentMethods.ToListAsync(ct);
 
         foreach (var country in countries)

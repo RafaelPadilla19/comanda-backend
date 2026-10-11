@@ -48,6 +48,8 @@ public sealed class PublicMenuRequest { public Guid BranchId { get; set; } }
 /// <summary>Devuelve el menú público de una sucursal (categorías + productos disponibles + zonas de entrega).</summary>
 public sealed class PublicMenuEndpoint(
     ITenantResolver resolver,
+    ICurrentTenant current,
+    IRepository<Tenant> tenants,
     IRepository<Branch> branches,
     IRepository<Category> categories,
     IProductRepository products,
@@ -87,6 +89,8 @@ public sealed class PublicMenuEndpoint(
         var branchZones = (await zones.ListAsync(z => z.IsActive && (z.BranchId == null || z.BranchId == branch.Id), ct))
             .OrderBy(z => z.Fee).ThenBy(z => z.Name).ToList();
 
+        var tenant = current.TenantId is { } tenantId ? await tenants.GetByIdAsync(tenantId, ct) : null;
+
         await Send.OkAsync(new PublicMenuDto
         {
             BranchId = branch.Id,
@@ -102,6 +106,9 @@ public sealed class PublicMenuEndpoint(
             CoverageRadiusKm = branch.CoverageRadiusKm,
             DeliveryBaseFee = branch.DeliveryBaseFee,
             DeliveryFeePerKm = branch.DeliveryFeePerKm,
+            Currency = tenant?.Currency ?? "USD",
+            CurrencySymbol = tenant?.CurrencySymbol ?? "$",
+            TaxRate = tenant?.TaxRate ?? 0.13m,
         }, ct);
     }
 }

@@ -11,7 +11,10 @@ public sealed class ComandaMappingProfile : Profile
     {
         CreateMap<User, UserDto>()
             .ForMember(d => d.BranchName, o => o.MapFrom(s => s.Branch != null ? s.Branch.Name : "Todas las sucursales"))
-            .ForMember(d => d.TenantName, o => o.MapFrom(s => s.Tenant != null ? s.Tenant.Name : string.Empty));
+            .ForMember(d => d.TenantName, o => o.MapFrom(s => s.Tenant != null ? s.Tenant.Name : string.Empty))
+            .ForMember(d => d.Currency, o => o.MapFrom(s => s.Tenant != null ? s.Tenant.Currency : "USD"))
+            .ForMember(d => d.CurrencySymbol, o => o.MapFrom(s => s.Tenant != null ? s.Tenant.CurrencySymbol : "$"))
+            .ForMember(d => d.TaxRate, o => o.MapFrom(s => s.Tenant != null ? s.Tenant.TaxRate : 0.13m));
 
         CreateMap<Branch, BranchDto>();
         CreateMap<Category, CategoryDto>();

@@ -64,7 +64,10 @@ cómo obtuvo la sesión:
     "plan": { "planName": "Premium", "onlinePayments": true, "coupons": true, "loyalty": true, "advancedReports": true, "inventory": false },
     "subscriptionStatus": "Trial",
     "subscriptionEndsAt": null,
-    "trialEndsAt": "2027-01-24T00:00:00Z"
+    "trialEndsAt": "2027-01-24T00:00:00Z",
+    "currency": "USD",
+    "currencySymbol": "$",
+    "taxRate": 0.13
   }
 }
 ```

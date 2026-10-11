@@ -10,8 +10,6 @@ namespace Comanda.Infrastructure.Persistence;
 public sealed class TenantProvisioningService(
     ComandaDbContext db, ICurrentTenant tenant, IPasswordHasher hasher) : ITenantProvisioningService
 {
-    private static readonly string[] SupportedCountries = ["SV", "GT", "HN", "NI", "CR", "PA", "CO"];
-
     public async Task<Result<User>> RegisterAsync(
         string restaurantName, string adminName, string email, string password, string country, CancellationToken ct = default)
     {
@@ -22,10 +20,15 @@ public sealed class TenantProvisioningService(
             return Error.Conflict("auth.email_existe", "Ya existe una cuenta con ese correo.");
 
         var code = (country ?? string.Empty).Trim().ToUpperInvariant();
-        if (!SupportedCountries.Contains(code))
+        if (!Comanda.Domain.Common.SupportedCountries.IsValid(code))
             return Error.Validation("registro.pais", "Selecciona un país válido.");
 
-        var newTenant = new Tenant { Name = restaurantName.Trim(), Slug = await UniqueSlugAsync(restaurantName, ct), Country = code };
+        var defaults = Comanda.Domain.Common.SupportedCountries.DefaultsFor(code);
+        var newTenant = new Tenant
+        {
+            Name = restaurantName.Trim(), Slug = await UniqueSlugAsync(restaurantName, ct), Country = code,
+            Currency = defaults.Currency, CurrencySymbol = defaults.CurrencySymbol, TaxRate = defaults.TaxRate,
+        };
 
         // Plan inicial: el más económico activo (Starter, freemium). Queda activo de inmediato.
         var starter = await db.Plans.Where(p => p.IsActive)

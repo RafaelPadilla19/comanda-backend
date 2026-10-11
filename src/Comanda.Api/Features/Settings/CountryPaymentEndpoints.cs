@@ -12,12 +12,6 @@ using RMapper.Core.Interfaces;
 
 namespace Comanda.Api.Features.Settings;
 
-internal static class Countries
-{
-    public static readonly string[] Supported = ["SV", "GT", "HN", "NI", "CR", "PA"];
-    public static bool IsValid(string c) => Supported.Contains(c);
-}
-
 // ==================== Restaurante: país ====================
 
 public sealed class GetCountryEndpoint(IRepository<Tenant> tenants, ICurrentTenant current)
@@ -45,7 +39,7 @@ public sealed class SetCountryEndpoint(IRepository<Tenant> tenants, ICurrentTena
             return;
         }
         var code = (req.Country ?? string.Empty).Trim().ToUpperInvariant();
-        if (!Countries.IsValid(code))
+        if (!SupportedCountries.IsValid(code))
         {
             await HttpContext.SendErrorAsync(Error.Validation("pais.invalido", "Selecciona un país válido."), ct);
             return;
@@ -59,6 +53,61 @@ public sealed class SetCountryEndpoint(IRepository<Tenant> tenants, ICurrentTena
         await DbSeeder.SyncTenantPaymentMethodsAsync(db, code, ct);
 
         await Send.OkAsync(new CountryDto { Country = code }, ct);
+    }
+}
+
+// ==================== Restaurante: moneda e impuesto ====================
+
+public sealed class GetBusinessSettingsEndpoint(IRepository<Tenant> tenants, ICurrentTenant current)
+    : EndpointWithoutRequest<BusinessSettingsDto>
+{
+    public override void Configure() => Get("/settings/business");
+
+    public override async Task HandleAsync(CancellationToken ct)
+    {
+        var tenant = current.TenantId is { } id ? await tenants.GetByIdAsync(id, ct) : null;
+        await Send.OkAsync(new BusinessSettingsDto
+        {
+            Currency = tenant?.Currency ?? "USD",
+            CurrencySymbol = tenant?.CurrencySymbol ?? "$",
+            TaxRate = tenant?.TaxRate ?? 0.13m,
+        }, ct);
+    }
+}
+
+public sealed class UpdateBusinessSettingsValidator : Validator<BusinessSettingsDto>
+{
+    public UpdateBusinessSettingsValidator()
+    {
+        RuleFor(x => x.Currency).NotEmpty().Length(3).WithMessage("La moneda debe ser un código ISO de 3 letras (p.ej. USD).");
+        RuleFor(x => x.CurrencySymbol).NotEmpty().MaximumLength(5);
+        RuleFor(x => x.TaxRate).InclusiveBetween(0m, 0.5m).WithMessage("La tasa de impuesto debe estar entre 0% y 50%.");
+    }
+}
+
+public sealed class UpdateBusinessSettingsEndpoint(IRepository<Tenant> tenants, ICurrentTenant current, ComandaDbContext db)
+    : Endpoint<BusinessSettingsDto, BusinessSettingsDto>
+{
+    public override void Configure() => Put("/settings/business");
+
+    public override async Task HandleAsync(BusinessSettingsDto req, CancellationToken ct)
+    {
+        if (current.TenantId is not { } id || await tenants.GetByIdAsync(id, ct) is not { } tenant)
+        {
+            await HttpContext.SendErrorAsync(Error.NotFound("tenant.no_encontrado", "Negocio no encontrado."), ct);
+            return;
+        }
+
+        tenant.Currency = req.Currency.Trim().ToUpperInvariant();
+        tenant.CurrencySymbol = req.CurrencySymbol.Trim();
+        tenant.TaxRate = req.TaxRate;
+        tenants.Update(tenant);
+        await db.SaveChangesAsync(ct);
+
+        await Send.OkAsync(new BusinessSettingsDto
+        {
+            Currency = tenant.Currency, CurrencySymbol = tenant.CurrencySymbol, TaxRate = tenant.TaxRate,
+        }, ct);
     }
 }
 
@@ -191,7 +240,7 @@ public sealed class CountryPaymentMethodValidator : Validator<CountryPaymentMeth
 {
     public CountryPaymentMethodValidator()
     {
-        RuleFor(x => x.Country).NotEmpty().Must(Countries.IsValid).WithMessage("País no soportado.");
+        RuleFor(x => x.Country).NotEmpty().Must(SupportedCountries.IsValid).WithMessage("País no soportado.");
         RuleFor(x => x.Key).NotEmpty().WithMessage("La clave es obligatoria.");
         RuleFor(x => x.Label).NotEmpty().WithMessage("El nombre es obligatorio.");
     }

@@ -43,6 +43,9 @@ public class ComandaDbContext(DbContextOptions<ComandaDbContext> options, ICurre
             e.Property(x => x.Name).HasMaxLength(160).IsRequired();
             e.Property(x => x.Slug).HasMaxLength(80).IsRequired();
             e.Property(x => x.Country).HasMaxLength(2).IsRequired();
+            e.Property(x => x.Currency).HasMaxLength(3).IsRequired();
+            e.Property(x => x.CurrencySymbol).HasMaxLength(5).IsRequired();
+            e.Property(x => x.TaxRate).HasPrecision(5, 4);
             e.Property(x => x.LoyaltyEarnRate).HasPrecision(9, 2);
             e.Property(x => x.SubscriptionStatus).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.WompiAppId).HasMaxLength(100);
