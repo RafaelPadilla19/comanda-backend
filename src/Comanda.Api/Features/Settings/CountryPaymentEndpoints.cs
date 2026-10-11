@@ -12,6 +12,22 @@ using RMapper.Core.Interfaces;
 
 namespace Comanda.Api.Features.Settings;
 
+// ==================== Público: lista de países habilitados ====================
+
+/// <summary>Países activos para selects públicos (registro, Configuración, Pagos). Sin sesión.</summary>
+public sealed class ListCountriesEndpoint(ComandaDbContext db) : EndpointWithoutRequest<List<CountryOptionDto>>
+{
+    public override void Configure() { Get("/countries"); AllowAnonymous(); }
+
+    public override async Task HandleAsync(CancellationToken ct)
+    {
+        var list = await db.Countries.Where(c => c.IsActive).OrderBy(c => c.SortOrder).ThenBy(c => c.Name)
+            .Select(c => new CountryOptionDto { Code = c.Code, Name = c.Name, Flag = c.Flag })
+            .ToListAsync(ct);
+        await Send.OkAsync(list, ct);
+    }
+}
+
 // ==================== Restaurante: país ====================
 
 public sealed class GetCountryEndpoint(IRepository<Tenant> tenants, ICurrentTenant current)
@@ -39,7 +55,7 @@ public sealed class SetCountryEndpoint(IRepository<Tenant> tenants, ICurrentTena
             return;
         }
         var code = (req.Country ?? string.Empty).Trim().ToUpperInvariant();
-        if (!SupportedCountries.IsValid(code))
+        if (!await CountryCatalog.IsValidAsync(db, code, ct))
         {
             await HttpContext.SendErrorAsync(Error.Validation("pais.invalido", "Selecciona un país válido."), ct);
             return;
@@ -238,9 +254,11 @@ public sealed class CountryPaymentMethodUpsert
 
 public sealed class CountryPaymentMethodValidator : Validator<CountryPaymentMethodUpsert>
 {
-    public CountryPaymentMethodValidator()
+    public CountryPaymentMethodValidator(ComandaDbContext db)
     {
-        RuleFor(x => x.Country).NotEmpty().Must(SupportedCountries.IsValid).WithMessage("País no soportado.");
+        RuleFor(x => x.Country).NotEmpty()
+            .MustAsync((c, ct) => CountryCatalog.IsValidAsync(db, (c ?? string.Empty).Trim().ToUpperInvariant(), ct))
+            .WithMessage("País no soportado.");
         RuleFor(x => x.Key).NotEmpty().WithMessage("La clave es obligatoria.");
         RuleFor(x => x.Label).NotEmpty().WithMessage("El nombre es obligatorio.");
     }

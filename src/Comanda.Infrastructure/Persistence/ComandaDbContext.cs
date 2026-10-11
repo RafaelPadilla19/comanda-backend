@@ -16,6 +16,7 @@ public class ComandaDbContext(DbContextOptions<ComandaDbContext> options, ICurre
     public DbSet<PlatformAdmin> PlatformAdmins => Set<PlatformAdmin>();
     public DbSet<PlatformSetting> PlatformSettings => Set<PlatformSetting>();
     public DbSet<CountryPaymentMethod> CountryPaymentMethods => Set<CountryPaymentMethod>();
+    public DbSet<Country> Countries => Set<Country>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Branch> Branches => Set<Branch>();
     public DbSet<Category> Categories => Set<Category>();
@@ -66,6 +67,18 @@ public class ComandaDbContext(DbContextOptions<ComandaDbContext> options, ICurre
         {
             e.Property(x => x.WompiAppId).HasMaxLength(100);
             e.Ignore(x => x.HasWompi);
+        });
+
+        b.Entity<Country>(e =>
+        {
+            e.Property(x => x.Code).HasMaxLength(2).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(80).IsRequired();
+            e.Property(x => x.Flag).HasMaxLength(16);
+            e.Property(x => x.Currency).HasMaxLength(3).IsRequired();
+            e.Property(x => x.CurrencySymbol).HasMaxLength(5).IsRequired();
+            e.Property(x => x.TaxRate).HasPrecision(5, 4);
+            e.Property(x => x.TaxLabel).HasMaxLength(20);
+            e.HasIndex(x => x.Code).IsUnique();
         });
 
         b.Entity<CountryPaymentMethod>(e =>

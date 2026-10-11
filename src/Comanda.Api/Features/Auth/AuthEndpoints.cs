@@ -6,6 +6,7 @@ using Comanda.Domain.Abstractions;
 using Comanda.Domain.Common;
 using Comanda.Domain.Entities;
 using Comanda.Domain.Enums;
+using Comanda.Infrastructure.Persistence;
 using Comanda.Infrastructure.Security;
 using FastEndpoints;
 using FluentValidation;
@@ -131,7 +132,7 @@ public sealed class RegisterRequest
 
 public sealed class RegisterValidator : Validator<RegisterRequest>
 {
-    public RegisterValidator()
+    public RegisterValidator(ComandaDbContext db)
     {
         RuleFor(x => x.RestaurantName).NotEmpty().WithMessage("El nombre del restaurante es obligatorio.");
         RuleFor(x => x.AdminName).NotEmpty().WithMessage("Tu nombre es obligatorio.");
@@ -140,7 +141,7 @@ public sealed class RegisterValidator : Validator<RegisterRequest>
         RuleFor(x => x.Password).NotEmpty().WithMessage("La contraseña es obligatoria.")
             .MinimumLength(8).WithMessage("La contraseña debe tener al menos 8 caracteres.");
         RuleFor(x => x.Country).NotEmpty().WithMessage("Selecciona tu país.")
-            .Must(c => Comanda.Domain.Common.SupportedCountries.IsValid((c ?? string.Empty).Trim().ToUpperInvariant()))
+            .MustAsync((c, ct) => CountryCatalog.IsValidAsync(db, (c ?? string.Empty).Trim().ToUpperInvariant(), ct))
             .WithMessage("País no soportado.");
     }
 }

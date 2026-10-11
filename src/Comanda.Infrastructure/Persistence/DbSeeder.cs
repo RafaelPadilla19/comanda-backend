@@ -21,6 +21,9 @@ public static class DbSeeder
         // ---- Plataforma: planes de suscripción (globales, modelo freemium estilo OlaClick) ----
         await EnsurePlansAsync(db, ct);
 
+        // ---- Plataforma: catálogo de países habilitados (editable luego en /platform/countries) ----
+        await EnsureCountriesAsync(db, ct);
+
         // ---- Plataforma: catálogo de métodos de pago por país (Centroamérica) ----
         await EnsureCountryPaymentMethodsAsync(db, ct);
 
@@ -361,6 +364,36 @@ public static class DbSeeder
     }
 
     /// <summary>
+    /// Siembra el catálogo de países habilitados (global, editable luego en /platform/countries
+    /// sin redeploy). Idempotente: agrega solo los que falten por código.
+    /// </summary>
+    private static async Task EnsureCountriesAsync(ComandaDbContext db, CancellationToken ct)
+    {
+        (string Code, string Name, string Flag, string Currency, string Symbol, decimal Tax, string TaxLabel, int Sort)[] seed =
+        [
+            ("SV", "El Salvador", "🇸🇻", "USD", "$", 0.13m, "IVA", 0),
+            ("GT", "Guatemala", "🇬🇹", "GTQ", "Q", 0.12m, "IVA", 1),
+            ("HN", "Honduras", "🇭🇳", "HNL", "L", 0.15m, "ISV", 2),
+            ("NI", "Nicaragua", "🇳🇮", "NIO", "C$", 0.15m, "IVA", 3),
+            ("CR", "Costa Rica", "🇨🇷", "CRC", "₡", 0.13m, "IVA", 4),
+            ("PA", "Panamá", "🇵🇦", "USD", "$", 0.07m, "ITBMS", 5),
+            ("CO", "Colombia", "🇨🇴", "COP", "$", 0.19m, "IVA", 6),
+        ];
+
+        var existing = (await db.Countries.Select(c => c.Code).ToListAsync(ct)).ToHashSet();
+        foreach (var c in seed)
+        {
+            if (existing.Contains(c.Code)) continue;
+            db.Countries.Add(new Country
+            {
+                Code = c.Code, Name = c.Name, Flag = c.Flag, Currency = c.Currency, CurrencySymbol = c.Symbol,
+                TaxRate = c.Tax, TaxLabel = c.TaxLabel, SortOrder = c.Sort, IsActive = true,
+            });
+        }
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
     /// Siembra el catálogo de métodos de pago por país soportado (global, editable en
     /// /platform). Idempotente: agrega solo los que falten por (país, clave).
     /// </summary>
@@ -382,7 +415,7 @@ public static class DbSeeder
             ("pay-online", "Pago en línea", "Checkout web del menú digital (Wompi)", "🌐", true, false, 9),
         };
 
-        var countries = Comanda.Domain.Common.SupportedCountries.Codes;
+        var countries = await CountryCatalog.ActiveCodesAsync(db, ct);
         var existing = await db.CountryPaymentMethods.ToListAsync(ct);
 
         foreach (var country in countries)

@@ -20,10 +20,10 @@ public sealed class TenantProvisioningService(
             return Error.Conflict("auth.email_existe", "Ya existe una cuenta con ese correo.");
 
         var code = (country ?? string.Empty).Trim().ToUpperInvariant();
-        if (!Comanda.Domain.Common.SupportedCountries.IsValid(code))
+        if (!await CountryCatalog.IsValidAsync(db, code, ct))
             return Error.Validation("registro.pais", "Selecciona un país válido.");
 
-        var defaults = Comanda.Domain.Common.SupportedCountries.DefaultsFor(code);
+        var defaults = await CountryCatalog.DefaultsForAsync(db, code, ct);
         var newTenant = new Tenant
         {
             Name = restaurantName.Trim(), Slug = await UniqueSlugAsync(restaurantName, ct), Country = code,

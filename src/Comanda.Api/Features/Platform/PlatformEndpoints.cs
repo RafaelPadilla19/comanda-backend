@@ -190,6 +190,141 @@ public sealed class DeletePlanEndpoint(ComandaDbContext db) : Endpoint<DeletePla
     }
 }
 
+// ---------------- Países (catálogo global, editable sin redeploy) ----------------
+
+public sealed class PlatformCountriesEndpoint(ComandaDbContext db) : EndpointWithoutRequest<List<PlatformCountryDto>>
+{
+    public override void Configure() { Get("/platform/countries"); Roles(PlatformPolicy.Role); }
+
+    public override async Task HandleAsync(CancellationToken ct)
+    {
+        var countries = await db.Countries.OrderBy(c => c.SortOrder).ThenBy(c => c.Name).ToListAsync(ct);
+        var tenantCounts = await db.Tenants.IgnoreQueryFilters()
+            .GroupBy(t => t.Country).Select(g => new { g.Key, C = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.C, ct);
+
+        var list = countries.Select(c => new PlatformCountryDto
+        {
+            Id = c.Id, Code = c.Code, Name = c.Name, Flag = c.Flag,
+            Currency = c.Currency, CurrencySymbol = c.CurrencySymbol, TaxRate = c.TaxRate, TaxLabel = c.TaxLabel,
+            IsActive = c.IsActive, SortOrder = c.SortOrder,
+            TenantsCount = tenantCounts.TryGetValue(c.Code, out var n) ? n : 0,
+        }).ToList();
+
+        await Send.OkAsync(list, ct);
+    }
+}
+
+public sealed class CountryUpsertRequest
+{
+    public Guid? Id { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Flag { get; set; } = string.Empty;
+    public string Currency { get; set; } = "USD";
+    public string CurrencySymbol { get; set; } = "$";
+    /// <summary>Porcentaje (13 = 13%), no fracción — se convierte al guardar.</summary>
+    public decimal TaxPercent { get; set; }
+    public string TaxLabel { get; set; } = "IVA";
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+public sealed class CountryUpsertValidator : Validator<CountryUpsertRequest>
+{
+    public CountryUpsertValidator()
+    {
+        RuleFor(x => x.Code).NotEmpty().Length(2).WithMessage("El código debe ser ISO-2 (p.ej. SV, CO).");
+        RuleFor(x => x.Name).NotEmpty().WithMessage("El nombre del país es obligatorio.");
+        RuleFor(x => x.Currency).NotEmpty().Length(3).WithMessage("La moneda debe ser un código ISO de 3 letras.");
+        RuleFor(x => x.CurrencySymbol).NotEmpty().WithMessage("El símbolo de moneda es obligatorio.");
+        RuleFor(x => x.TaxPercent).InclusiveBetween(0, 50).WithMessage("El impuesto debe estar entre 0% y 50%.");
+    }
+}
+
+public sealed class CreateCountryEndpoint(ComandaDbContext db) : Endpoint<CountryUpsertRequest, PlatformCountryDto>
+{
+    public override void Configure() { Post("/platform/countries"); Roles(PlatformPolicy.Role); }
+
+    public override async Task HandleAsync(CountryUpsertRequest req, CancellationToken ct)
+    {
+        var code = req.Code.Trim().ToUpperInvariant();
+        if (await db.Countries.AnyAsync(c => c.Code == code, ct))
+        {
+            await HttpContext.SendErrorAsync(Error.Conflict("paises.duplicado", "Ese país ya está en el catálogo."), ct);
+            return;
+        }
+        var c = new Domain.Entities.Country { Code = code };
+        Apply(req, c);
+        db.Countries.Add(c);
+        await db.SaveChangesAsync(ct);
+        await Send.OkAsync(ToDto(c), ct);
+    }
+
+    internal static void Apply(CountryUpsertRequest req, Domain.Entities.Country c)
+    {
+        c.Name = req.Name.Trim();
+        c.Flag = req.Flag.Trim();
+        c.Currency = req.Currency.Trim().ToUpperInvariant();
+        c.CurrencySymbol = req.CurrencySymbol.Trim();
+        c.TaxRate = req.TaxPercent / 100m;
+        c.TaxLabel = string.IsNullOrWhiteSpace(req.TaxLabel) ? "IVA" : req.TaxLabel.Trim();
+        c.SortOrder = req.SortOrder;
+        c.IsActive = req.IsActive;
+    }
+
+    internal static PlatformCountryDto ToDto(Domain.Entities.Country c) => new()
+    {
+        Id = c.Id, Code = c.Code, Name = c.Name, Flag = c.Flag,
+        Currency = c.Currency, CurrencySymbol = c.CurrencySymbol, TaxRate = c.TaxRate, TaxLabel = c.TaxLabel,
+        IsActive = c.IsActive, SortOrder = c.SortOrder,
+    };
+}
+
+public sealed class UpdateCountryEndpoint(ComandaDbContext db) : Endpoint<CountryUpsertRequest, PlatformCountryDto>
+{
+    public override void Configure() { Put("/platform/countries/{id}"); Roles(PlatformPolicy.Role); }
+
+    public override async Task HandleAsync(CountryUpsertRequest req, CancellationToken ct)
+    {
+        if (req.Id is not { } id || await db.Countries.FirstOrDefaultAsync(c => c.Id == id, ct) is not { } c)
+        {
+            await HttpContext.SendErrorAsync(Error.NotFound("paises.no_encontrado", "País no encontrado."), ct);
+            return;
+        }
+        // El código no se edita: cambiarlo rompería los tenants que ya lo usan (Tenant.Country es texto, no FK).
+        CreateCountryEndpoint.Apply(req, c);
+        await db.SaveChangesAsync(ct);
+        await Send.OkAsync(CreateCountryEndpoint.ToDto(c), ct);
+    }
+}
+
+public sealed class DeleteCountryRequest { public Guid Id { get; set; } }
+
+public sealed class DeleteCountryEndpoint(ComandaDbContext db) : Endpoint<DeleteCountryRequest>
+{
+    public override void Configure() { Delete("/platform/countries/{id}"); Roles(PlatformPolicy.Role); }
+
+    public override async Task HandleAsync(DeleteCountryRequest req, CancellationToken ct)
+    {
+        if (await db.Countries.FirstOrDefaultAsync(c => c.Id == req.Id, ct) is not { } c)
+        {
+            await HttpContext.SendErrorAsync(Error.NotFound("paises.no_encontrado", "País no encontrado."), ct);
+            return;
+        }
+        // Si ya hay tenants en ese país, no se borra (perderían su catálogo de moneda/impuesto): se desactiva.
+        if (await db.Tenants.IgnoreQueryFilters().AnyAsync(t => t.Country == c.Code, ct))
+        {
+            c.IsActive = false;
+            await db.SaveChangesAsync(ct);
+            await Send.OkAsync(new { deactivated = true }, ct);
+            return;
+        }
+        db.Countries.Remove(c);
+        await db.SaveChangesAsync(ct);
+        await Send.NoContentAsync(ct);
+    }
+}
+
 // ---------------- Ajustes del operador: credenciales Wompi de plataforma ----------------
 
 public sealed class GetPlatformWompiEndpoint(ComandaDbContext db) : EndpointWithoutRequest<WompiConfigDto>
@@ -257,7 +392,7 @@ public sealed class PlatformTenantsEndpoint(ComandaDbContext db) : EndpointWitho
 
         var list = tenants.Select(t => new PlatformTenantDto
         {
-            Id = t.Id, Name = t.Name, Slug = t.Slug, IsActive = t.IsActive,
+            Id = t.Id, Name = t.Name, Slug = t.Slug, Country = t.Country, IsActive = t.IsActive,
             SubscriptionStatus = t.SubscriptionStatus,
             PlanId = t.PlanId, PlanName = t.Plan?.Name ?? "Sin plan", PriceMonthly = t.Plan?.PriceMonthly ?? 0,
             Branches = Get(branches, t.Id), Products = Get(products, t.Id),
@@ -317,6 +452,100 @@ public sealed class SetTenantStatusEndpoint(ComandaDbContext db) : Endpoint<SetT
         tenant.IsActive = req.Status != SubscriptionStatus.Suspended && req.Status != SubscriptionStatus.Cancelled;
         await db.SaveChangesAsync(ct);
         await Send.NoContentAsync(ct);
+    }
+}
+
+public sealed class ExtendSubscriptionValidator : Validator<ExtendSubscriptionRequest>
+{
+    public ExtendSubscriptionValidator()
+    {
+        RuleFor(x => x.SubscriptionEndsAt).GreaterThan(DateTime.UtcNow)
+            .WithMessage("La nueva fecha debe ser en el futuro.");
+    }
+}
+
+/// <summary>Extiende manualmente la suscripción de un tenant (cortesía, pago fuera de banda,
+/// negociación directa). No crea un SubscriptionPayment: es un ajuste administrativo, no un cobro.</summary>
+public sealed class ExtendSubscriptionEndpoint(ComandaDbContext db) : Endpoint<ExtendSubscriptionRequest>
+{
+    public override void Configure() { Put("/platform/tenants/{id}/subscription"); Roles(PlatformPolicy.Role); }
+
+    public override async Task HandleAsync(ExtendSubscriptionRequest req, CancellationToken ct)
+    {
+        var tenant = await db.Tenants.FirstOrDefaultAsync(t => t.Id == req.Id, ct);
+        if (tenant is null)
+        {
+            await HttpContext.SendErrorAsync(Error.NotFound("platform.tenant", "Tenant no encontrado."), ct);
+            return;
+        }
+        tenant.SubscriptionEndsAt = req.SubscriptionEndsAt;
+        if (tenant.SubscriptionStatus is SubscriptionStatus.PastDue or SubscriptionStatus.Trial)
+            tenant.SubscriptionStatus = SubscriptionStatus.Active;
+        await db.SaveChangesAsync(ct);
+        await Send.NoContentAsync(ct);
+    }
+}
+
+// ---------------- Ficha de tenant: detalle + analítica ----------------
+
+public sealed class TenantIdRequest { public Guid Id { get; set; } }
+
+public sealed class PlatformTenantDetailEndpoint(ComandaDbContext db)
+    : Endpoint<TenantIdRequest, PlatformTenantDetailDto>
+{
+    public override void Configure() { Get("/platform/tenants/{id}"); Roles(PlatformPolicy.Role); }
+
+    public override async Task HandleAsync(TenantIdRequest req, CancellationToken ct)
+    {
+        var tenant = await db.Tenants.Include(t => t.Plan).FirstOrDefaultAsync(t => t.Id == req.Id, ct);
+        if (tenant is null)
+        {
+            await HttpContext.SendErrorAsync(Error.NotFound("platform.tenant", "Tenant no encontrado."), ct);
+            return;
+        }
+
+        var branches = await db.Branches.IgnoreQueryFilters().Where(b => b.TenantId == tenant.Id)
+            .OrderBy(b => b.Name).ToListAsync(ct);
+        var users = await db.Users.IgnoreQueryFilters().Where(u => u.TenantId == tenant.Id)
+            .OrderBy(u => u.Name).ToListAsync(ct);
+        var productsCount = await db.Products.IgnoreQueryFilters().CountAsync(p => p.TenantId == tenant.Id, ct);
+        var customersCount = await db.Customers.IgnoreQueryFilters().CountAsync(c => c.TenantId == tenant.Id, ct);
+        var orders = await db.Orders.IgnoreQueryFilters().Include(o => o.Items)
+            .Where(o => o.TenantId == tenant.Id).ToListAsync(ct);
+        var payments = await db.SubscriptionPayments.IgnoreQueryFilters().Where(p => p.TenantId == tenant.Id)
+            .OrderByDescending(p => p.CreatedAt).Take(10).ToListAsync(ct);
+
+        var monthStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var ordersThisMonth = orders.Where(o => o.CreatedAt >= monthStart).ToList();
+        var revenueTotal = orders.Sum(o => o.Total);
+
+        await Send.OkAsync(new PlatformTenantDetailDto
+        {
+            Id = tenant.Id, Name = tenant.Name, Slug = tenant.Slug, Country = tenant.Country,
+            Currency = tenant.Currency, CurrencySymbol = tenant.CurrencySymbol, TaxRate = tenant.TaxRate,
+            IsActive = tenant.IsActive, SubscriptionStatus = tenant.SubscriptionStatus,
+            TrialEndsAt = tenant.TrialEndsAt, SubscriptionEndsAt = tenant.SubscriptionEndsAt,
+            PlanId = tenant.PlanId, PlanName = tenant.Plan?.Name ?? "Sin plan", PriceMonthly = tenant.Plan?.PriceMonthly ?? 0,
+            CreatedAt = tenant.CreatedAt,
+
+            BranchesCount = branches.Count, ProductsCount = productsCount, UsersCount = users.Count,
+            CustomersCount = customersCount,
+            TotalOrders = orders.Count, OrdersThisMonth = ordersThisMonth.Count,
+            RevenueTotal = revenueTotal, RevenueThisMonth = ordersThisMonth.Sum(o => o.Total),
+            AvgTicket = orders.Count > 0 ? revenueTotal / orders.Count : 0,
+            LastOrderAt = orders.Count > 0 ? orders.Max(o => o.CreatedAt) : null,
+
+            BranchList = branches.Select(b => new PlatformTenantBranchDto
+                { Name = b.Name, Address = b.Address, IsActive = b.IsActive }).ToList(),
+            UserList = users.Select(u => new PlatformTenantUserDto
+                { Name = u.Name, Email = u.Email, Role = u.Role.ToString(), IsActive = u.IsActive }).ToList(),
+            TopProducts = Comanda.Api.Features.Reports.ReportHelpers.TopProducts(orders, 5),
+            Payments = payments.Select(p => new SubscriptionPaymentDto
+            {
+                Amount = p.Amount, PlanName = p.PlanName, IsPaid = p.IsPaid, CreatedAt = p.CreatedAt,
+                PaidAt = p.PaidAt, PeriodEndsAt = p.PeriodEndsAt, PeriodMonths = p.PeriodMonths,
+            }).ToList(),
+        }, ct);
     }
 }
 

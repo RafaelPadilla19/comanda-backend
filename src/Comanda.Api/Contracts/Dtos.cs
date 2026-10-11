@@ -303,6 +303,7 @@ public sealed class PlatformTenantDto
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Slug { get; set; } = string.Empty;
+    public string Country { get; set; } = string.Empty;
     public bool IsActive { get; set; }
     public SubscriptionStatus SubscriptionStatus { get; set; }
     public Guid? PlanId { get; set; }
@@ -313,6 +314,67 @@ public sealed class PlatformTenantDto
     public int Users { get; set; }
     public int Orders { get; set; }
     public DateTime CreatedAt { get; set; }
+}
+
+/// <summary>Sucursal de un tenant, vista por el operador (/platform/tenants/{id}).</summary>
+public sealed class PlatformTenantBranchDto
+{
+    public string Name { get; set; } = string.Empty;
+    public string Address { get; set; } = string.Empty;
+    public bool IsActive { get; set; }
+}
+
+/// <summary>Usuario de un tenant, vista por el operador.</summary>
+public sealed class PlatformTenantUserDto
+{
+    public string Name { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
+    public bool IsActive { get; set; }
+}
+
+/// <summary>Detalle y analítica de un tenant para la ficha del operador en /platform.</summary>
+public sealed class PlatformTenantDetailDto
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Slug { get; set; } = string.Empty;
+    public string Country { get; set; } = string.Empty;
+    public string Currency { get; set; } = string.Empty;
+    public string CurrencySymbol { get; set; } = string.Empty;
+    public decimal TaxRate { get; set; }
+    public bool IsActive { get; set; }
+    public SubscriptionStatus SubscriptionStatus { get; set; }
+    public DateTime? TrialEndsAt { get; set; }
+    public DateTime? SubscriptionEndsAt { get; set; }
+    public Guid? PlanId { get; set; }
+    public string PlanName { get; set; } = string.Empty;
+    public decimal PriceMonthly { get; set; }
+    public DateTime CreatedAt { get; set; }
+
+    // Analítica (cross-tenant, calculada en el momento)
+    public int BranchesCount { get; set; }
+    public int ProductsCount { get; set; }
+    public int UsersCount { get; set; }
+    public int CustomersCount { get; set; }
+    public int TotalOrders { get; set; }
+    public int OrdersThisMonth { get; set; }
+    public decimal RevenueTotal { get; set; }
+    public decimal RevenueThisMonth { get; set; }
+    public decimal AvgTicket { get; set; }
+    public DateTime? LastOrderAt { get; set; }
+
+    public List<PlatformTenantBranchDto> BranchList { get; set; } = new();
+    public List<PlatformTenantUserDto> UserList { get; set; } = new();
+    public List<Comanda.Api.Features.Reports.TopProductDto> TopProducts { get; set; } = new();
+    public List<SubscriptionPaymentDto> Payments { get; set; } = new();
+}
+
+/// <summary>Extiende manualmente la suscripción de un tenant (cortesía, pago fuera de banda, etc.).</summary>
+public sealed class ExtendSubscriptionRequest
+{
+    public Guid Id { get; set; }
+    public DateTime SubscriptionEndsAt { get; set; }
 }
 
 // ---- Facturación de la suscripción (restaurante → Innovacors) ----
@@ -471,6 +533,31 @@ public sealed class PaymentMethodDto
 public sealed class CountryDto
 {
     public string Country { get; set; } = "SV";
+}
+
+/// <summary>Opción de país para selects públicos (registro, Configuración, Pagos). Solo activos.</summary>
+public sealed class CountryOptionDto
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Flag { get; set; } = string.Empty;
+}
+
+/// <summary>País del catálogo administrado por el operador en /platform/countries.</summary>
+public sealed class PlatformCountryDto
+{
+    public Guid Id { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Flag { get; set; } = string.Empty;
+    public string Currency { get; set; } = "USD";
+    public string CurrencySymbol { get; set; } = "$";
+    public decimal TaxRate { get; set; } = 0.13m;
+    public string TaxLabel { get; set; } = "IVA";
+    public bool IsActive { get; set; } = true;
+    public int SortOrder { get; set; }
+    /// <summary>Cuántos tenants usan hoy este país (informativo, para avisar antes de desactivar).</summary>
+    public int TenantsCount { get; set; }
 }
 
 /// <summary>Moneda e impuesto del restaurante (lectura/edición en Configuración). Precargados

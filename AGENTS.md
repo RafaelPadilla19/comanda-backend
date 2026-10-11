@@ -20,6 +20,13 @@ src/
   Comanda.Api/Features/   endpoints FastEndpoints por feature
 ```
 
+## Dominios clave (para orientarse rápido)
+
+- **Multi-tenant** (`Features/Settings`, `TenantProvisioningService`): `Tenant` NO es `ITenantScoped` (es la raíz). `Tenant.Currency/CurrencySymbol/TaxRate` son dinámicos por restaurante (se precargan según el país al registrarse, editables en Configuración > Negocio vía `/settings/business`). Los precios del menú asumen "impuesto incluido" (estilo SV); el modo "agregado" (sales tax USA) sigue sin implementar.
+- **Países — catálogo DINÁMICO** (`Comanda.Domain.Entities.Country`, tabla `Countries`): reemplaza la vieja lista estática `SupportedCountries`. **Nunca volver a hardcodear una lista de países** — el operador los agrega/edita/desactiva en `/platform/countries` (CRUD, super-admin) sin redeploy. Lecturas desde código van por `Comanda.Infrastructure.Persistence.CountryCatalog` (`IsValidAsync`/`DefaultsForAsync`/`ActiveCodesAsync`), nunca por un array local. Endpoint público `GET /countries` (sin sesión) expone los activos para selects (registro, Configuración, Pagos). Seed inicial en `DbSeeder.EnsureCountriesAsync` (SV/GT/HN/NI/CR/PA/CO), solo agrega los que falten — el operador puede editarlos después sin que el seed los pise.
+- **Control-Plane / super-admin** (`Features/Platform/PlatformEndpoints.cs`, rol `PlatformAdmin`, `IgnoreQueryFilters` para cruzar tenants): CRUD de planes y países, catálogo de métodos de pago por país, credenciales Wompi de plataforma, y **ficha de tenant** (`GET /platform/tenants/{id}`) con analítica (ingresos, ticket promedio, productos más vendidos, sucursales, usuarios, historial de pagos) + acciones (asignar plan, suspender/activar, `PUT /platform/tenants/{id}/subscription` para extender manualmente el vencimiento — ajuste administrativo, NO crea un `SubscriptionPayment`).
+- **Inventario** (`Features/Inventory`, `Features/Catalog`): **Kardex** = tabla `InventoryMovement` (ledger real, `Reason` enum Entrada/Salida/Merma/Ajuste/Venta) junto a `InventoryItem.Stock`; cualquier ajuste manual exige motivo+nota. **Receta/BOM** = `Product.Recipe: List<RecipeLine>`, value object **owned-JSON** (`OwnsMany(...).ToJson()`, no tabla propia — es config, no un ledger). **Descuento automático**: al mover un pedido A `Entregados` (`OrderEndpoints.MoveOrderEndpoint`, guardado contra re-moves) se consume la receta de cada línea, agregando por insumo antes de escribir, y se registra un `InventoryMovement` con `Reason.Venta`. Todo esto está gateado al plan **Elite** (`PlanFeature.Inventory`), mismo flag para Inventario/Kardex/Receta.
+
 ## Reglas de código
 
 1. **Idioma**: código y mensajes de commit en español. Mensajes de error al usuario en español (`{codigo, mensaje}`), nunca inglés.
