@@ -433,6 +433,18 @@ public sealed class InventoryItemDto
     public decimal Cost { get; set; }
 }
 
+/// <summary>Línea de kardex: un movimiento de stock, más reciente primero.</summary>
+public sealed class InventoryMovementDto
+{
+    public Guid Id { get; set; }
+    public InventoryMovementReason Reason { get; set; }
+    public decimal Delta { get; set; }
+    public decimal ResultingStock { get; set; }
+    public string Note { get; set; } = string.Empty;
+    public string CreatedByName { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+}
+
 public sealed class PaymentMethodDto
 {
     public string Key { get; set; } = string.Empty;

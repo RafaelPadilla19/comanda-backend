@@ -55,3 +55,17 @@ public enum OrderChannel
     /// <summary>Entrega a domicilio.</summary>
     Delivery = 2,
 }
+
+/// <summary>Motivo de un movimiento de inventario (kardex). El signo del `Delta` ya indica
+/// entrada/salida; esto es para que el historial diga *por qué* cambió el stock.</summary>
+public enum InventoryMovementReason
+{
+    /// <summary>Compra o recepción de insumo (entrada).</summary>
+    Entrada = 0,
+    /// <summary>Consumo manual / uso en cocina (salida).</summary>
+    Salida = 1,
+    /// <summary>Pérdida: vencido, dañado, derramado (salida).</summary>
+    Merma = 2,
+    /// <summary>Corrección de conteo físico (puede ser positivo o negativo).</summary>
+    Ajuste = 3,
+}

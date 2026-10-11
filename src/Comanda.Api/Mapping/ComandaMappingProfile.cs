@@ -34,6 +34,7 @@ public sealed class ComandaMappingProfile : Profile
         CreateMap<CashSession, CashSessionDto>();
 
         CreateMap<InventoryItem, InventoryItemDto>();
+        CreateMap<InventoryMovement, InventoryMovementDto>();
         CreateMap<PaymentMethodConfig, PaymentMethodDto>();
         CreateMap<Printer, PrinterDto>();
         CreateMap<DeliveryZone, DeliveryZoneDto>();

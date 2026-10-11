@@ -25,6 +25,7 @@ public class ComandaDbContext(DbContextOptions<ComandaDbContext> options, ICurre
     public DbSet<CashSession> CashSessions => Set<CashSession>();
     public DbSet<CashMovement> CashMovements => Set<CashMovement>();
     public DbSet<InventoryItem> InventoryItems => Set<InventoryItem>();
+    public DbSet<InventoryMovement> InventoryMovements => Set<InventoryMovement>();
     public DbSet<PaymentMethodConfig> PaymentMethods => Set<PaymentMethodConfig>();
     public DbSet<Printer> Printers => Set<Printer>();
     public DbSet<DeliveryZone> DeliveryZones => Set<DeliveryZone>();
@@ -193,6 +194,17 @@ public class ComandaDbContext(DbContextOptions<ComandaDbContext> options, ICurre
             e.Property(x => x.Stock).HasPrecision(18, 3);
             e.Property(x => x.Min).HasPrecision(18, 3);
             e.Property(x => x.Cost).HasPrecision(18, 2);
+        });
+
+        b.Entity<InventoryMovement>(e =>
+        {
+            e.Property(x => x.Delta).HasPrecision(18, 3);
+            e.Property(x => x.ResultingStock).HasPrecision(18, 3);
+            e.Property(x => x.Note).HasMaxLength(300);
+            e.Property(x => x.CreatedByName).HasMaxLength(160);
+            e.Property(x => x.Reason).HasConversion<string>().HasMaxLength(20);
+            e.HasOne(x => x.InventoryItem).WithMany().HasForeignKey(x => x.InventoryItemId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.InventoryItemId, x.CreatedAt });
         });
 
         b.Entity<PaymentMethodConfig>(e =>

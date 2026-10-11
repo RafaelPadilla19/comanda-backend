@@ -1,9 +1,11 @@
+using System.Security.Claims;
 using Comanda.Api.Common;
 using Comanda.Api.Contracts;
 using Comanda.Api.Mapping;
 using Comanda.Domain.Abstractions;
 using Comanda.Domain.Common;
 using Comanda.Domain.Entities;
+using Comanda.Domain.Enums;
 using FastEndpoints;
 using FluentValidation;
 using RMapper.Core.Interfaces;
@@ -74,9 +76,19 @@ public sealed class AdjustStockRequest
 {
     public Guid Id { get; set; }
     public decimal Delta { get; set; } // positivo = entrada, negativo = salida
+    public InventoryMovementReason Reason { get; set; } = InventoryMovementReason.Ajuste;
+    public string Note { get; set; } = string.Empty;
 }
 
-public sealed class AdjustStockEndpoint(IRepository<InventoryItem> items, IUnitOfWork uow, IRMapper mapper)
+public sealed class AdjustStockValidator : Validator<AdjustStockRequest>
+{
+    public AdjustStockValidator()
+        => RuleFor(x => x.Delta).NotEqual(0).WithMessage("La cantidad no puede ser cero.");
+}
+
+/// <summary>Ajusta el stock de un insumo y deja registro en el kardex (quién, cuánto, por qué).</summary>
+public sealed class AdjustStockEndpoint(
+    IRepository<InventoryItem> items, IRepository<InventoryMovement> movements, IUnitOfWork uow, IRMapper mapper)
     : Endpoint<AdjustStockRequest, InventoryItemDto>
 {
     public override void Configure() => Post("/inventory/{id}/adjust");
@@ -91,7 +103,38 @@ public sealed class AdjustStockEndpoint(IRepository<InventoryItem> items, IUnitO
 
         item.Stock = Math.Max(0, Math.Round(item.Stock + req.Delta, 3));
         items.Update(item);
+
+        var userName = User.FindFirstValue(ClaimTypes.Name) ?? "—";
+        await movements.AddAsync(new InventoryMovement
+        {
+            InventoryItemId = item.Id, Reason = req.Reason, Delta = req.Delta,
+            ResultingStock = item.Stock, Note = req.Note.Trim(), CreatedByName = userName,
+        }, ct);
+
         await uow.SaveChangesAsync(ct);
         await Send.OkAsync(mapper.Map<InventoryItem, InventoryItemDto>(item), ct);
+    }
+}
+
+public sealed class ListMovementsRequest { public Guid Id { get; set; } }
+
+/// <summary>Kardex de un insumo: últimos movimientos, más reciente primero.</summary>
+public sealed class ListMovementsEndpoint(IRepository<InventoryMovement> movements, IPlanService planService, IRMapper mapper)
+    : Endpoint<ListMovementsRequest, List<InventoryMovementDto>>
+{
+    public override void Configure() => Get("/inventory/{id}/movements");
+
+    public override async Task HandleAsync(ListMovementsRequest req, CancellationToken ct)
+    {
+        var allowed = await planService.EnsureFeatureAsync(PlanFeature.Inventory, ct);
+        if (allowed.IsFailure)
+        {
+            await HttpContext.SendErrorAsync(allowed.Error, ct);
+            return;
+        }
+
+        var list = (await movements.ListAsync(m => m.InventoryItemId == req.Id, ct))
+            .OrderByDescending(m => m.CreatedAt).Take(100).ToList();
+        await Send.OkAsync(mapper.MapList<InventoryMovement, InventoryMovementDto>(list), ct);
     }
 }
