@@ -8,6 +8,7 @@ using Comanda.Infrastructure.Security;
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RMapper.Core.Interfaces;
 
@@ -51,7 +52,7 @@ public sealed class ForgotPasswordValidator : Validator<ForgotPasswordRequest>
 /// correos están registrados.</summary>
 public sealed class ForgotPasswordEndpoint(
     IUserRepository users, IRepository<PasswordResetRequest> resets,
-    IEmailSender email, IUnitOfWork uow)
+    IEmailSender email, IUnitOfWork uow, ILogger<ForgotPasswordEndpoint> logger)
     : Endpoint<ForgotPasswordRequest>
 {
     public override void Configure()
@@ -94,9 +95,11 @@ public sealed class ForgotPasswordEndpoint(
                     </div>
                     """, ct);
             }
-            catch
+            catch (Exception ex)
             {
-                // No se revela la falla de envío al cliente: mismo mensaje genérico de abajo.
+                // No se revela la falla de envío al cliente (mismo mensaje genérico de abajo),
+                // pero sí queda en logs del servidor para poder diagnosticar problemas de SMTP.
+                logger.LogError(ex, "Falló el envío del correo de OTP a {Email}", normalizedEmail);
             }
         }
 
