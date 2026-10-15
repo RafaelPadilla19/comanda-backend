@@ -64,6 +64,17 @@ builder.Services.AddRateLimiter(o =>
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0,
             }));
+    // Flujo de "olvidé mi contraseña" (envío/verificación de OTP): sin esto, alguien podría
+    // automatizar el envío masivo de correos o probar códigos por fuerza bruta.
+    o.AddPolicy("password-reset", httpContext =>
+        System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            }));
     // Consulta pública de puntos por teléfono: sin esto, alguien podría automatizar miles de
     // números y enumerar clientes (nombre + saldo). No reemplaza verificar dueño del teléfono,
     // pero corta la fuerza bruta.

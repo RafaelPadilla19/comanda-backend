@@ -14,6 +14,9 @@ opcionalmente login con token válido).
 | `GET` | `/api/auth/verify-token` | ✅ Bearer Token | Confirma si el access token actual sigue vigente |
 | `POST` | `/api/auth/login-with-token` | ✅ Bearer Token | (Opcional) Re-emite sesión completa sin pedir credenciales, usando el JWT vigente |
 | `GET` | `/api/auth/me` | ✅ Bearer Token | Ya existente — datos del usuario autenticado + plan/suscripción |
+| `POST` | `/api/auth/forgot-password` | ❌ No requiere | Olvidé mi contraseña — envía un OTP de 6 dígitos al correo |
+| `POST` | `/api/auth/verify-otp` | ❌ No requiere | Canjea el OTP por un token de un solo uso (15 min) |
+| `POST` | `/api/auth/reset-password` | ❌ No requiere | Aplica la nueva contraseña con ese token → sesión completa (mismo shape que Login) |
 
 Todos los errores (login fallido, token inválido, validación, etc.) vuelven con este shape:
 ```json
@@ -240,7 +243,79 @@ cuenta.
 
 ---
 
-## 7. Tabla `RefreshTokens` (nueva)
+## 7. Olvidé mi contraseña — OTP en 3 pasos
+
+Flujo: `forgot-password` (pide el OTP) → `verify-otp` (canjea el OTP por un token) →
+`reset-password` (aplica la nueva contraseña con ese token). El OTP nunca se reutiliza
+como credencial del paso 3 — una vez verificado, solo el token opaco sirve.
+
+### 7.1 `POST /api/auth/forgot-password`
+
+```json
+{ "email": "admin@sabores.sv" }
+```
+
+**Response 200 — siempre el mismo mensaje**, exista o no el correo (no revela qué cuentas
+están registradas):
+```json
+{ "mensaje": "Si el correo está registrado, recibirás un código de verificación." }
+```
+
+Si el correo pertenece a un usuario activo, se genera un OTP numérico de 6 dígitos
+(vigente 10 minutos) y se envía por correo (plantilla HTML, remitente `Smtp:FromName`).
+Un fallo de envío no se refleja en la respuesta (se registra y se ignora) — el mensaje es
+siempre el mismo. Rate limit: política `password-reset` (5 req/min por IP).
+
+### 7.2 `POST /api/auth/verify-otp`
+
+```json
+{ "email": "admin@sabores.sv", "code": "123456" }
+```
+
+**Response 200:**
+```json
+{ "token": "a1XaL020l1a3t1ktU_KLotbRx8HG6pngspE9hRWx6co" }
+```
+
+**Response 401** (`auth.otp_invalido`) si el código es incorrecto, ya expiró, ya fue
+usado, o se superaron 5 intentos fallidos. El token devuelto es opaco (256 bits,
+Base64Url), vigente 15 minutos, y de un solo uso.
+
+### 7.3 `POST /api/auth/reset-password`
+
+```json
+{ "token": "a1XaL020l1a3t1ktU_KLotbRx8HG6pngspE9hRWx6co", "newPassword": "NuevaPass123" }
+```
+
+**Response 200 — mismo shape que `/api/auth/login`** (sesión completa: JWT + refresh
+token + `UserDto`). **Response 401** (`auth.reset_token_invalido`) si el token es
+inválido, ya se usó, o expiró.
+
+### 7.4 Tabla `PasswordResetRequests` (nueva)
+
+Entidad `Comanda.Domain.Entities.PasswordResetRequest`, no es `ITenantScoped` (se busca
+por email antes de conocer el tenant, igual que Login/Register), migración
+`AddPasswordResetRequests`:
+
+| Columna | Tipo | Notas |
+|---|---|---|
+| `Id` | uuid (PK) | |
+| `Email` | varchar(200) | normalizado a minúsculas |
+| `OtpHash` | varchar(100) | SHA-256 del OTP — nunca se guarda en claro |
+| `OtpExpiresAt` | timestamptz | 10 minutos desde la creación |
+| `Attempts` | int | máximo 5 intentos fallidos de verificación |
+| `ResetToken` | varchar(200), único, nullable | se llena al verificar el OTP correctamente |
+| `ResetTokenExpiresAt` | timestamptz, nullable | 15 minutos desde la verificación |
+| `Used` | bool | se marca tras un reset exitoso |
+| `CreatedAt` | timestamptz | heredado de `Entity` |
+
+**Envío de correo:** `Comanda.Infrastructure.Email.SmtpEmailSender` (MailKit), configurado
+por variables de entorno (`Smtp__Host`, `Smtp__Port`, `Smtp__Username`, `Smtp__Password`,
+`Smtp__FromName`, `Smtp__UseSsl`) — nunca hardcodeadas ni en `appsettings` versionado.
+
+---
+
+## 8. Tabla `RefreshTokens` (nueva)
 
 Entidad nueva (`Comanda.Domain.Entities.RefreshToken`), tabla `RefreshTokens` en
 `ComandaDbContext` (no es `ITenantScoped` — el `UserId` ya identifica el tenant vía el
@@ -264,13 +339,13 @@ La migración se aplica igual que las demás de este repo: manualmente contra Ne
 
 ---
 
-## 8. Códigos de respuesta — resumen
+## 9. Códigos de respuesta — resumen
 
 | Código | Cuándo |
 |--------|-------------|
 | 200 | Éxito |
 | 400 | Validación de campos (FluentValidation) |
-| 401 | Credenciales incorrectas, refresh token inválido/usado/vencido, o access token inválido/vencido en los endpoints `[Authorize]` |
+| 401 | Credenciales incorrectas, refresh token inválido/usado/vencido, OTP/token de reset inválido, o access token inválido/vencido en los endpoints `[Authorize]` |
 | 403 | Usuario inactivo o restaurante suspendido/cancelado |
 | 409 | Email ya registrado (solo en `/auth/register`) |
-| 429 | Rate limit excedido (`/auth/login` y `/auth/refresh-token`) |
+| 429 | Rate limit excedido (`/auth/login`, `/auth/refresh-token` y el flujo de `/auth/forgot-password`\|`verify-otp`\|`reset-password`) |

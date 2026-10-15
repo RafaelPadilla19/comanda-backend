@@ -35,6 +35,7 @@ public class ComandaDbContext(DbContextOptions<ComandaDbContext> options, ICurre
     public DbSet<Coupon> Coupons => Set<Coupon>();
     public DbSet<SubscriptionPayment> SubscriptionPayments => Set<SubscriptionPayment>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<PasswordResetRequest> PasswordResetRequests => Set<PasswordResetRequest>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -116,6 +117,15 @@ public class ComandaDbContext(DbContextOptions<ComandaDbContext> options, ICurre
             e.Property(x => x.ReplacedByToken).HasMaxLength(200);
             e.HasIndex(x => x.Token).IsUnique();   // único: se busca directo por su valor
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<PasswordResetRequest>(e =>
+        {
+            e.Property(x => x.Email).HasMaxLength(200).IsRequired();
+            e.Property(x => x.OtpHash).HasMaxLength(100).IsRequired();
+            e.Property(x => x.ResetToken).HasMaxLength(200);
+            e.HasIndex(x => x.Email);
+            e.HasIndex(x => x.ResetToken).IsUnique();
         });
 
         b.Entity<Branch>(e =>
