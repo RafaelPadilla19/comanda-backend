@@ -254,10 +254,16 @@ public sealed class CountryPaymentMethodUpsert
 
 public sealed class CountryPaymentMethodValidator : Validator<CountryPaymentMethodUpsert>
 {
-    public CountryPaymentMethodValidator(ComandaDbContext db)
+    // Los validators son singleton: el DbContext (scoped) se resuelve en un scope por validación.
+    public CountryPaymentMethodValidator()
     {
         RuleFor(x => x.Country).NotEmpty()
-            .MustAsync((c, ct) => CountryCatalog.IsValidAsync(db, (c ?? string.Empty).Trim().ToUpperInvariant(), ct))
+            .MustAsync(async (c, ct) =>
+            {
+                using var scope = CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<ComandaDbContext>();
+                return await CountryCatalog.IsValidAsync(db, (c ?? string.Empty).Trim().ToUpperInvariant(), ct);
+            })
             .WithMessage("País no soportado.");
         RuleFor(x => x.Key).NotEmpty().WithMessage("La clave es obligatoria.");
         RuleFor(x => x.Label).NotEmpty().WithMessage("El nombre es obligatorio.");

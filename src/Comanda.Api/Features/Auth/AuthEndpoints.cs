@@ -132,7 +132,8 @@ public sealed class RegisterRequest
 
 public sealed class RegisterValidator : Validator<RegisterRequest>
 {
-    public RegisterValidator(ComandaDbContext db)
+    // Los validators son singleton: el DbContext (scoped) se resuelve en un scope por validación.
+    public RegisterValidator()
     {
         RuleFor(x => x.RestaurantName).NotEmpty().WithMessage("El nombre del restaurante es obligatorio.");
         RuleFor(x => x.AdminName).NotEmpty().WithMessage("Tu nombre es obligatorio.");
@@ -141,7 +142,12 @@ public sealed class RegisterValidator : Validator<RegisterRequest>
         RuleFor(x => x.Password).NotEmpty().WithMessage("La contraseña es obligatoria.")
             .MinimumLength(8).WithMessage("La contraseña debe tener al menos 8 caracteres.");
         RuleFor(x => x.Country).NotEmpty().WithMessage("Selecciona tu país.")
-            .MustAsync((c, ct) => CountryCatalog.IsValidAsync(db, (c ?? string.Empty).Trim().ToUpperInvariant(), ct))
+            .MustAsync(async (c, ct) =>
+            {
+                using var scope = CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<ComandaDbContext>();
+                return await CountryCatalog.IsValidAsync(db, (c ?? string.Empty).Trim().ToUpperInvariant(), ct);
+            })
             .WithMessage("País no soportado.");
     }
 }
